@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 
-const BASE_BACKEND_URL = "https://localhost:7045";
+const BASE_BACKEND_URL = import.meta.env.DEV
+    ? "https://localhost:7045"                     
+    : "https://webinventory-o4u0.onrender.com";
 const EXPIRATION_TIME_MS = 5 * 60 * 1000; // 5 minutes session expiration
 
 export default function App() {

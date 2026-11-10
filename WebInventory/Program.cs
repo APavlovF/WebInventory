@@ -38,7 +38,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowLocalUI", policy =>
     {
-        policy.WithOrigins("http://localhost:56951") // Your frontend URL
+        policy.WithOrigins("http://localhost:56951", "https://github.io")
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
