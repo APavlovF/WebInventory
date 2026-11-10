@@ -36,9 +36,9 @@ builder.Services.AddAuthorization();
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowLocalUI", policy =>
+    options.AddPolicy("AllowUI", policy =>
     {
-        policy.WithOrigins("http://localhost:56951", "https://github.io")
+        policy.WithOrigins("http://localhost:56951", "https://apavlovf.github.io")
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -46,7 +46,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-app.UseCors("AllowLocalUI");
+app.UseCors("AllowUI");
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
