@@ -10,7 +10,11 @@ public class JwtService(IConfiguration configuration)
 {
     public string Generate(User user)
     {
-        Claim[] claims = [new("sub", user.Id.ToString()), new("login", user.Email)];
+        Claim[] claims =
+        [
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new(ClaimTypes.Email, user.Email)
+        ];
         SymmetricSecurityKey key = new(Encoding.UTF8.GetBytes(configuration["Jwt:Key"]!));
         SigningCredentials credentials = new(key, SecurityAlgorithms.HmacSha256);
         JwtSecurityToken token = new(claims: claims, expires: DateTime.UtcNow.AddDays(30), signingCredentials: credentials);

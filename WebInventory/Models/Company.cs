@@ -7,6 +7,7 @@ public class Company : IEntityTypeConfiguration<Company>
 {
     public int Id { get; set; }
     public string Name { get; set; }
+    public int UserId { get; set; }
     public User User { get; set; }
 
     public void Configure(EntityTypeBuilder<Company> builder)

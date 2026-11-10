@@ -6,10 +6,11 @@ using WebInventory.Services;
 
 namespace WebInventory.Controllers;
 
+[Route("api/activate")]
 public class ActivateUser(EfDbContext db, PasswordService passwordService) : ControllerBase
 {
-    [HttpPost("activate")]
-    public async Task<IActionResult> Activate(ActivateRequest request)
+    [HttpPost]
+    public async Task<IActionResult> Activate([FromBody] ActivateRequest request)
     {
         Invitation invitation = await db.Invitations.SingleOrDefaultAsync(i => i.Token == request.Token);
         if (invitation == null || invitation.Used || invitation.ExpiresUtc < DateTime.UtcNow) return BadRequest();
