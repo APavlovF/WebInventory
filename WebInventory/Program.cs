@@ -34,8 +34,19 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowLocalUI", policy =>
+    {
+        policy.WithOrigins("http://localhost:56951") // Your frontend URL
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
 var app = builder.Build();
 
+app.UseCors("AllowLocalUI");
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();

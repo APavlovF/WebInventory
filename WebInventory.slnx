@@ -1,3 +1,7 @@
 <Solution>
+  <Project Path="InventoryUI/inventoryui.esproj">
+    <Build />
+    <Deploy />
+  </Project>
   <Project Path="WebInventory/WebInventory.csproj" />
 </Solution>
