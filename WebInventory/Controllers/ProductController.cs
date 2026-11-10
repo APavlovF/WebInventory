@@ -1,9 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using WebInventory.Data;
 using WebInventory.Models;
 
 namespace WebInventory.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/product")]
 public class ProductController(EfDbContext context) : ControllerBase

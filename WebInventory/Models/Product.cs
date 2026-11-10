@@ -5,6 +5,7 @@ namespace WebInventory.Models;
 
 public class Product : IEntityTypeConfiguration<Product>
 {
+    public Company Company { get; set; }
     public int Id { get; set; }
     public string Name { get; set; }
     public List<Item> Items { get; set; }
