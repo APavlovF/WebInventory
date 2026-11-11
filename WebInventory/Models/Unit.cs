@@ -9,6 +9,7 @@ public class Unit : IEntityTypeConfiguration<Unit>
     public string Measurement { get; set; }
     public string Name { get; set; }
     public string Sku { get; set; }
+    public User User { get; set; }
 
     public void Configure(EntityTypeBuilder<Unit> builder)
     {

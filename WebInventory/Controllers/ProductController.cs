@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
-using Microsoft.EntityFrameworkCore;
 using WebInventory.Data;
 using WebInventory.Models;
 
@@ -21,8 +20,7 @@ public class ProductController(EfDbContext context) : ControllerBase
         }
 
         int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        Company company = await context.Companies.FirstOrDefaultAsync(c => c.User.Id == userId);
-        product.Company = company;
+        product.UserId = userId;
 
         context.Products.Add(product);
         await context.SaveChangesAsync();

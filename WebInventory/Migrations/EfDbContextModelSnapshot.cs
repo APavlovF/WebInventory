@@ -22,28 +22,6 @@ namespace WebInventory.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("WebInventory.Models.Company", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Name")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<int?>("UserId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("Companies");
-                });
-
             modelBuilder.Entity("WebInventory.Models.Invitation", b =>
                 {
                     b.Property<int>("Id")
@@ -104,9 +82,6 @@ namespace WebInventory.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("CompanyId")
-                        .HasColumnType("integer");
-
                     b.Property<string>("Name")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
@@ -115,9 +90,12 @@ namespace WebInventory.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("CompanyId");
+                    b.HasIndex("UserId");
 
                     b.ToTable("Products");
                 });
@@ -142,7 +120,12 @@ namespace WebInventory.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<int?>("UserId")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("Units");
                 });
@@ -171,15 +154,6 @@ namespace WebInventory.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("WebInventory.Models.Company", b =>
-                {
-                    b.HasOne("WebInventory.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("WebInventory.Models.Item", b =>
                 {
                     b.HasOne("WebInventory.Models.Product", null)
@@ -195,11 +169,22 @@ namespace WebInventory.Migrations
 
             modelBuilder.Entity("WebInventory.Models.Product", b =>
                 {
-                    b.HasOne("WebInventory.Models.Company", "Company")
+                    b.HasOne("WebInventory.Models.User", "User")
                         .WithMany()
-                        .HasForeignKey("CompanyId");
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
-                    b.Navigation("Company");
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("WebInventory.Models.Unit", b =>
+                {
+                    b.HasOne("WebInventory.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("WebInventory.Models.Product", b =>
