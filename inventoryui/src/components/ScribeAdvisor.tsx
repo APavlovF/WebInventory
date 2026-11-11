@@ -1,5 +1,4 @@
 // src/components/ScribeAdvisor.tsx
-import React from 'react';
 
 interface ScribeAdvisorProps {
     message: string;

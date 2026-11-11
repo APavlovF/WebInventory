@@ -1,5 +1,4 @@
 // src/App.tsx
-import React from 'react';
 import MainFrame from './components/MainFrame';
 
 export default function App() {

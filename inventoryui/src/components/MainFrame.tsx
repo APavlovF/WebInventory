@@ -1,5 +1,5 @@
 // src/components/MainFrame.tsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import MapCanvas from '../features/map/MapCanvas';
 import ScribeAdvisor from './ScribeAdvisor';

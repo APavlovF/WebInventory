@@ -1,5 +1,4 @@
 // src/features/map/MapCanvas.tsx
-import React from 'react';
 import BuildingNode from './BuildingNode';
 
 interface MapCanvasProps {
