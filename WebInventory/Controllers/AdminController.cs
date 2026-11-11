@@ -6,13 +6,14 @@ namespace WebInventory.Controllers;
 
 [ApiController]
 [Route("api/admin")]
-public class AdminController(IConfiguration configuration, EfDbContext db) : ControllerBase
+public class AdminController(EfDbContext db) : ControllerBase
 {
     [HttpPost("invite")]
     public async Task<IActionResult> Invite(string login)
     {
+        string adminApiKey = Environment.GetEnvironmentVariable("ADMIN_API_KEY");
         string apiKey = Request.Headers["X-Admin-Key"].FirstOrDefault();
-        if (apiKey != configuration["ADMIN_API_KEY"]) return Unauthorized();
+        if (apiKey != adminApiKey) return Unauthorized();
 
         Invitation invitation = new Invitation
         {

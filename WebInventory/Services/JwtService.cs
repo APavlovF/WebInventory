@@ -6,7 +6,7 @@ using WebInventory.Models;
 
 namespace WebInventory.Services;
 
-public class JwtService(IConfiguration configuration)
+public class JwtService
 {
     public string Generate(User user)
     {
@@ -15,7 +15,9 @@ public class JwtService(IConfiguration configuration)
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Email, user.Email)
         ];
-        SymmetricSecurityKey key = new(Encoding.UTF8.GetBytes(configuration["Jwt:Key"]!));
+
+        string jwtKey = $"{Environment.GetEnvironmentVariable("Jwt__Key")}";
+        SymmetricSecurityKey key = new(Encoding.UTF8.GetBytes(jwtKey));
         SigningCredentials credentials = new(key, SecurityAlgorithms.HmacSha256);
         JwtSecurityToken token = new(claims: claims, expires: DateTime.UtcNow.AddDays(30), signingCredentials: credentials);
 
