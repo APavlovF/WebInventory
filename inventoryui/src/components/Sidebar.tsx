@@ -22,39 +22,48 @@ export default function Sidebar({ activeTab, setActiveTab, isAuthenticated, onLo
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
-            padding: '16px',
+            padding: '24px 16px 16px 16px', // Increased top padding since logo is gone
             boxSizing: 'border-box',
             zIndex: 10
         }}>
             <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 0', marginBottom: '24px', borderBottom: '1px solid #334155' }}>
-                    <div style={{ width: '16px', height: '16px', borderRadius: '4px', backgroundColor: isAuthenticated ? '#14b8a6' : '#f59e0b' }} />
-                    <span style={{ fontFamily: 'monospace', fontWeight: 'bold', color: '#f8fafc', letterSpacing: '1px' }}>NEXUS_INV</span>
-                </div>
+                {/* BRANDING REMOVED AS REQUESTED */}
 
-                <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <nav style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {menuItems.map((item) => {
-                        const isDisabled = !isAuthenticated && item !== 'Overview';
-                        const isActive = activeTab === item;
+                        // "Overview" stays highlighted to act as our primary staging ground anchor
+                        const isActive = item === 'Overview';
+
                         return (
                             <button
                                 key={item}
-                                disabled={isDisabled}
-                                onClick={() => setActiveTab(item)}
+                                type="button"
+                                // REMOVED 'disabled' attribute so all buttons can be hovered and clicked natively
+                                onClick={() => {
+                                    // PASSIVE BEHAVIOR: Do nothing on click for demo simulation mode
+                                    console.log(`Demo interaction: Clicked ${item} control knob.`);
+                                }}
                                 style={{
                                     width: '100%',
                                     textAlign: 'left',
                                     padding: '12px 16px',
                                     borderRadius: '8px',
                                     fontSize: '14px',
-                                    fontWeight: '500',
+                                    fontWeight: '600',
                                     border: 'none',
-                                    cursor: isDisabled ? 'not-allowed' : 'pointer',
-                                    opacity: isDisabled ? 0.3 : 1,
+                                    cursor: 'pointer',
+                                    // Brightened text for maximum visual visibility on dark backgrounds
+                                    color: isActive ? '#14b8a6' : '#cbd5e1',
                                     backgroundColor: isActive ? 'rgba(20, 184, 166, 0.15)' : 'transparent',
-                                    color: isActive ? '#14b8a6' : '#94a3b8',
-                                    borderLeft: isActive ? '4px solid #14b8a6' : 'none',
-                                    transition: 'all 0.2s'
+                                    borderLeft: isActive ? '4px solid #14b8a6' : '4px solid transparent',
+                                    transition: 'all 0.2s ease',
+                                }}
+                                // Inline CSS hover logic workaround for raw inline styles
+                                onMouseEnter={(e) => {
+                                    if (!isActive) e.currentTarget.style.backgroundColor = 'rgba(51, 65, 85, 0.5)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    if (!isActive) e.currentTarget.style.backgroundColor = 'transparent';
                                 }}
                             >
                                 {item}
