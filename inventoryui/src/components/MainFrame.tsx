@@ -2,13 +2,27 @@
 import { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import MapCanvas from '../features/map/MapCanvas';
+import Inventory from '../forms/inventory';
+import Products from '../forms/products';
+import Orders from '../forms/orders';
+import Reports from '../forms/reports';
 import ScribeAdvisor from './ScribeAdvisor';
 import LoginModal from './LoginModal';
 
 const EXPIRATION_TIME_MS = 5 * 60 * 1000;
 
+type TabType = 'Overview' | 'Inventory' | 'Products' | 'Orders' | 'Reports';
+
+// Building -> form tab (same order as the form files)
+const buildingToTab: Record<string, TabType> = {
+    Warehouse: 'Inventory',
+    Workshop: 'Products',
+    Market: 'Orders',
+    Office: 'Reports',
+};
+
 export default function MainFrame() {
-    const [activeTab, setActiveTab] = useState<'Overview' | 'Inventory' | 'Products' | 'Orders' | 'Reports'>('Overview');
+    const [activeTab, setActiveTab] = useState<TabType>('Overview');
     const [viewportTitle, setViewportTitle] = useState<string>('Overview');
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
     const [showLoginModal, setShowLoginModal] = useState<boolean>(false);
@@ -37,14 +51,31 @@ export default function MainFrame() {
     };
 
     // Updates both the active sidebar tab and the header title
-    const handleTabChange = (tab: 'Overview' | 'Inventory' | 'Products' | 'Orders' | 'Reports') => {
+    const handleTabChange = (tab: TabType) => {
         setActiveTab(tab);
         setViewportTitle(tab);
     };
 
-    // Demo mode: updates the header title to the clicked building without opening login
+    // Logged in: building opens its form. Demo mode: only the header title changes.
     const handleBuildingClick = (buildingName: string) => {
-        setViewportTitle(buildingName);
+        if (isAuthenticated) {
+            handleTabChange(buildingToTab[buildingName]);
+        } else {
+            setViewportTitle(buildingName);
+        }
+    };
+
+    // Logged in + a form tab selected -> show the form, otherwise the map
+    const renderViewport = () => {
+        if (isAuthenticated) {
+            switch (activeTab) {
+                case 'Inventory': return <Inventory />;
+                case 'Products': return <Products />;
+                case 'Orders': return <Orders />;
+                case 'Reports': return <Reports />;
+            }
+        }
+        return <MapCanvas onBuildingClick={handleBuildingClick} />;
     };
 
     return (
@@ -60,7 +91,6 @@ export default function MainFrame() {
             padding: 0,
             boxSizing: 'border-box'
         }}>
-            {/* Fixed Sidebar container at exactly 240px */}
             <Sidebar
                 activeTab={activeTab}
                 setActiveTab={handleTabChange}
@@ -69,7 +99,6 @@ export default function MainFrame() {
                 onLogoutClick={handleLogout}
             />
 
-            {/* Main content field dynamically calculated to take up remaining viewport space */}
             <main style={{
                 position: 'relative',
                 width: 'calc(100vw - 240px)',
@@ -90,9 +119,8 @@ export default function MainFrame() {
                     </span>
                 </header>
 
-                {/* Viewport content block maps perfectly over dimensions */}
                 <div style={{ position: 'relative', flex: 1, width: '100%', borderRadius: '12px', overflow: 'hidden', border: '1px solid #1e293b', backgroundColor: 'rgba(30, 41, 59, 0.2)' }}>
-                    <MapCanvas onBuildingClick={handleBuildingClick} />
+                    {renderViewport()}
                 </div>
 
                 <ScribeAdvisor message={isAuthenticated ? "All systems operational, milord." : "Sign in to manage our production, milord!"}
