@@ -9,6 +9,7 @@ const EXPIRATION_TIME_MS = 5 * 60 * 1000;
 
 export default function MainFrame() {
     const [activeTab, setActiveTab] = useState<'Overview' | 'Inventory' | 'Products' | 'Orders' | 'Reports'>('Overview');
+    const [viewportTitle, setViewportTitle] = useState<string>('Overview');
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
     const [showLoginModal, setShowLoginModal] = useState<boolean>(false);
 
@@ -35,12 +36,15 @@ export default function MainFrame() {
         setIsAuthenticated(false);
     };
 
+    // Updates both the active sidebar tab and the header title
+    const handleTabChange = (tab: 'Overview' | 'Inventory' | 'Products' | 'Orders' | 'Reports') => {
+        setActiveTab(tab);
+        setViewportTitle(tab);
+    };
+
+    // Demo mode: updates the header title to the clicked building without opening login
     const handleBuildingClick = (buildingName: string) => {
-        if (!isAuthenticated) {
-            setShowLoginModal(true);
-            return;
-        }
-        alert(`Authorized Access: Loading data forms for ${buildingName}`);
+        setViewportTitle(buildingName);
     };
 
     return (
@@ -57,7 +61,13 @@ export default function MainFrame() {
             boxSizing: 'border-box'
         }}>
             {/* Fixed Sidebar container at exactly 240px */}
-            <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} isAuthenticated={isAuthenticated} onLoginClick={() => setShowLoginModal(true)} onLogoutClick={handleLogout} />
+            <Sidebar
+                activeTab={activeTab}
+                setActiveTab={handleTabChange}
+                isAuthenticated={isAuthenticated}
+                onLoginClick={() => setShowLoginModal(true)}
+                onLogoutClick={handleLogout}
+            />
 
             {/* Main content field dynamically calculated to take up remaining viewport space */}
             <main style={{
@@ -72,7 +82,9 @@ export default function MainFrame() {
                 overflow: 'hidden'
             }}>
                 <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #1e293b', paddingBottom: '12px' }}>
-                    <h1 style={{ fontSize: '20px', fontWeight: 600, color: '#e2e8f0', margin: 0 }}>Simulated Viewport - {activeTab}</h1>
+                    <h1 style={{ fontSize: '20px', fontWeight: 600, color: '#e2e8f0', margin: 0 }}>
+                        Simulated Viewport - {viewportTitle}
+                    </h1>
                     <span style={{ fontSize: '12px', fontFamily: 'monospace', padding: '4px 12px', borderRadius: '9999px', border: isAuthenticated ? '1px solid rgba(20, 184, 166, 0.4)' : '1px solid rgba(245, 158, 11, 0.4)', color: isAuthenticated ? '#14b8a6' : '#f59e0b', backgroundColor: isAuthenticated ? 'rgba(20, 184, 166, 0.05)' : 'rgba(245, 158, 11, 0.05)' }}>
                         {isAuthenticated ? 'System Connected' : 'Guest Sandbox Mode (Read-Only)'}
                     </span>
@@ -83,7 +95,8 @@ export default function MainFrame() {
                     <MapCanvas onBuildingClick={handleBuildingClick} />
                 </div>
 
-                <ScribeAdvisor message={isAuthenticated ? "All systems operational, milord." : "Sign in to manage our production, milord!"} />
+                <ScribeAdvisor message={isAuthenticated ? "All systems operational, milord." : "Sign in to manage our production, milord!"}
+                    isDemoMode={!isAuthenticated} />
             </main>
 
             {showLoginModal && <LoginModal onSuccess={() => { setIsAuthenticated(true); setShowLoginModal(false); }} onClose={() => setShowLoginModal(false)} />}

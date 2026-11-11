@@ -60,14 +60,15 @@ export default function BuildingNode({ name, top, left, imgSrc, onClick }: Build
             {/* Floating Node Label */}
             <span style={{
                 marginTop: '8px',
-                padding: '3px 8px',
+                padding: '6px 14px',
                 background: '#0f172a',
                 color: isHovered ? '#2dd4bf' : '#14b8a6',
                 fontFamily: 'monospace',
-                fontSize: '11px',
+                fontSize: '16px',
                 fontWeight: 'bold',
-                borderRadius: '4px',
-                border: '1px solid rgba(20, 184, 166, 0.3)',
+                letterSpacing: '0.5px',
+                borderRadius: '6px',
+                border: '1px solid rgba(20, 184, 166, 0.4)',
                 boxShadow: '0 4px 6px rgba(0,0,0,0.4)'
             }}>
                 {name}
