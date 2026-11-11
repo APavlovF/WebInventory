@@ -66,23 +66,30 @@ export default function ScribeAdvisor({ message, isDemoMode = true }: ScribeAdvi
             </div>
 
             {/* Scribe Character Portrait Image Wrapper on the Right (2x Initial Size) */}
-            <div style={{
-                width: '112px',
-                height: '112px',
-                borderRadius: '50%',
-                border: '2px solid #14b8a6',
-                backgroundColor: '#1f2937',
-                overflow: 'hidden',
-                flexShrink: 0
-            }}>
-                <img
-                    src="advisor-man.png"
-                    alt="System Scribe Advisor"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    onError={(e) => {
-                        (e.target as HTMLElement).style.display = 'none';
-                    }}
-                />
+            <div className="flex flex-col items-center gap-2 shrink-0">
+                <div style={{
+                    width: '112px',
+                    height: '112px',
+                    borderRadius: '50%',
+                    border: '2px solid #14b8a6',
+                    backgroundColor: '#1f2937',
+                    overflow: 'hidden'
+                }}>
+                    <img
+                        src="advisor-man.png"
+                        alt="System Scribe Advisor"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(e) => {
+                            (e.target as HTMLElement).style.display = 'none';
+                        }}
+                    />
+                </div>
+                <span
+                    className="text-gray-400"
+                    style={{ fontSize: '11px' }}
+                >
+                    Version 1.0.0
+                </span>
             </div>
         </div>
     );

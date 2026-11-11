@@ -112,7 +112,7 @@ export default function MainFrame() {
             }}>
                 <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #1e293b', paddingBottom: '12px' }}>
                     <h1 style={{ fontSize: '20px', fontWeight: 600, color: '#e2e8f0', margin: 0 }}>
-                        Simulated Viewport - {viewportTitle}
+                        {!isAuthenticated && 'Simulated Viewport - '}{viewportTitle}
                     </h1>
                     <span style={{ fontSize: '12px', fontFamily: 'monospace', padding: '4px 12px', borderRadius: '9999px', border: isAuthenticated ? '1px solid rgba(20, 184, 166, 0.4)' : '1px solid rgba(245, 158, 11, 0.4)', color: isAuthenticated ? '#14b8a6' : '#f59e0b', backgroundColor: isAuthenticated ? 'rgba(20, 184, 166, 0.05)' : 'rgba(245, 158, 11, 0.05)' }}>
                         {isAuthenticated ? 'System Connected' : 'Guest Sandbox Mode (Read-Only)'}
