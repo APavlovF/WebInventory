@@ -10,7 +10,7 @@ interface SidebarProps {
     onLogoutClick: () => void;
 }
 
-export default function Sidebar({ activeTab, setActiveTab, isAuthenticated, onLoginClick, onLogoutClick }: SidebarProps) {
+export default function Sidebar({ isAuthenticated, onLoginClick, onLogoutClick }: SidebarProps) {
     const menuItems: TabType[] = ['Overview', 'Inventory', 'Products', 'Orders', 'Reports'];
 
     return (
