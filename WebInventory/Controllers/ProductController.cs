@@ -11,6 +11,19 @@ namespace WebInventory.Controllers;
 [Route("api/product")]
 public class ProductController(EfDbContext context, IDatabaseReader databaseReader) : ControllerBase
 {
+
+    [Authorize]
+    [HttpPost("batch")]
+    public async Task<IActionResult> AddBatch([FromBody] List<ProductStock> products)
+    {
+        int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        products.ForEach(p => p.UserId = userId);
+        context.ProductStocks.AddRange(products);
+        await context.SaveChangesAsync();
+
+        return Ok();
+    }
+
     [Authorize]
     [HttpPost("add")]
     public async Task<IActionResult> CreateProduct([FromBody] Product product)

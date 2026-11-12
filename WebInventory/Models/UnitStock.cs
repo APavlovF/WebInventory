@@ -6,4 +6,5 @@ public class UnitStock
     public int Quantity { get; set; }
     public Unit Unit { get; set; }
     public User User { get; set; }
+    public int UserId { get; set; }
 }
