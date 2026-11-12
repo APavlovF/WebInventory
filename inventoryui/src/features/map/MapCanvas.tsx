@@ -2,6 +2,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import BuildingNode from './BuildingNode';
+import AddProductTypeModal from '../workshop/AddProductTypeModal';
+import ProduceBatchModal from '../workshop/ProduceBatchModal';
+import type { Product, ProductStock, Unit, UnitStock } from '../../types/inventory';
+
+const MAX_STOCK = 100;      // your max stock limit
+const CURRENT_USER_ID = 1;  // replace with the logged-in user id
 
 interface MapCanvasProps {
     onBuildingClick: (name: string) => void;
@@ -9,6 +15,12 @@ interface MapCanvasProps {
 
 export default function MapCanvas({ onBuildingClick }: MapCanvasProps) {
     const [dimensions, setDimensions] = useState({ width: 1200, height: 800 });
+
+    const [activeModal, setActiveModal] = useState<'addProduct' | 'produceBatch' | null>(null);
+    const [units, setUnits] = useState<Unit[]>([]);
+    const [unitStocks, setUnitStocks] = useState<UnitStock[]>([]);
+    const [products, setProducts] = useState<Product[]>([]);
+    const [productStocks, setProductStocks] = useState<ProductStock[]>([]);
 
     // Start with the right-facing asset since it begins at Warehouse traveling up to the Office
     const [carImageAsset, setCarImageAsset] = useState('map-car-right.png');
@@ -202,6 +214,24 @@ export default function MapCanvas({ onBuildingClick }: MapCanvasProps) {
         </g>
     );
 
+    const handleBatchProduced = (
+        saved: ProductStock,
+        consumed: { unitId: number; consumed: number }[]
+    ) => {
+        setProductStocks((prev) => [...prev, saved]);
+
+        setUnitStocks((prev) => {
+            const remaining = new Map(consumed.map((c) => [c.unitId, c.consumed]));
+            return prev.map((us) => {
+                const left = remaining.get(us.unit.id) ?? 0;
+                if (left <= 0) return us;
+                const take = Math.min(us.quantity, left);
+                remaining.set(us.unit.id, left - take);
+                return { ...us, quantity: us.quantity - take };
+            });
+        });
+    };
+
     return (
         <div
             id="map-container"
@@ -281,8 +311,27 @@ export default function MapCanvas({ onBuildingClick }: MapCanvasProps) {
             {/* Scattered Infrastructure Building Nodes */}
             <BuildingNode name="Warehouse" top={`${warehousePt.y - 75}px`} left={`${warehousePt.x - 65}px`} imgSrc="map-warehouse.png" onClick={() => onBuildingClick('Warehouse')} />
             <BuildingNode name="Office" top={`${officePt.y - 75}px`} left={`${officePt.x - 65}px`} imgSrc="map-office.png" onClick={() => onBuildingClick('Office')} />
-            <BuildingNode name="Workshop" top={`${workshopPt.y - 75}px`} left={`${workshopPt.x - 65}px`} imgSrc="map-workshop.png" onClick={() => onBuildingClick('Workshop')} />
+            <BuildingNode name="Workshop" top={`${workshopPt.y - 75}px`} left={`${workshopPt.x - 65}px`} imgSrc="map-workshop.png" onClick={() => onBuildingClick('Workshop')}
+                onNewProduct={() => setActiveModal('addProduct')} onCreateProducts={() => setActiveModal('produceBatch')} />
             <BuildingNode name="Market" top={`${marketPt.y - 75}px`} left={`${marketPt.x - 65}px`} imgSrc="map-market.png" onClick={() => onBuildingClick('Market')} />
+            {/* Workshop forms */}
+            <AddProductTypeModal
+                isOpen={activeModal === 'addProduct'}
+                materials={units}
+                onClose={() => setActiveModal(null)}
+                onSuccess={(newProduct) => setProducts((prev) => [...prev, newProduct])}
+            />
+
+            <ProduceBatchModal
+                isOpen={activeModal === 'produceBatch'}
+                products={products}
+                productStocks={productStocks}
+                materialStocks={unitStocks}
+                maxStock={MAX_STOCK}
+                userId={CURRENT_USER_ID}
+                onClose={() => setActiveModal(null)}
+                onSuccess={handleBatchProduced}
+            />
         </div>
     );
 }

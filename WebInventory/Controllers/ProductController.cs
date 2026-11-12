@@ -12,7 +12,7 @@ namespace WebInventory.Controllers;
 public class ProductController(EfDbContext context, IDatabaseReader databaseReader) : ControllerBase
 {
     [Authorize]
-    [HttpPost]
+    [HttpPost("add")]
     public async Task<IActionResult> CreateProduct([FromBody] Product product)
     {
         if (product == null)
@@ -27,7 +27,7 @@ public class ProductController(EfDbContext context, IDatabaseReader databaseRead
     }
 
     [Authorize]
-    [HttpPost]
+    [HttpPost("fetch")]
     public async Task<IActionResult> GetProducts()
     {
         int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
