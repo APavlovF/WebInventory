@@ -8,7 +8,9 @@ public class EfDbContext(DbContextOptions<EfDbContext> options) : DbContext(opti
     public DbSet<Invitation> Invitations { get; set; }
     public DbSet<Item> Items { get; set; }
     public DbSet<Product> Products { get; set; }
+    public DbSet<ProductStock> ProductStocks { get; set; }
     public DbSet<Unit> Units { get; set; }
+    public DbSet<UnitStock> UnitStocks { get; set; }
     public DbSet<User> Users { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
