@@ -1,6 +1,7 @@
 // src/features/workshop/ProduceBatchModal.tsx
 import { useState, useMemo } from 'react';
 import type { CSSProperties, FormEvent } from 'react';
+import { apiFetch } from '../../api';
 import type { Item, Product, ProductStock, UnitStock } from '../../types/inventory';
 
 export interface ConsumedMaterial {
@@ -14,7 +15,6 @@ interface ProduceBatchModalProps {
     productStocks: ProductStock[]; // Existing product stock records (used to sum current stock per product)
     materialStocks: UnitStock[];   // Available material stock (UnitStock.Unit + UnitStock.Quantity)
     maxStock: number;              // Max stock limit, applied per product type
-    userId: number;                // Current user, saved with the batch
     onClose: () => void;
     onSuccess: (saved: ProductStock, consumedMaterials: ConsumedMaterial[]) => void;
 }
@@ -27,7 +27,6 @@ export default function ProduceBatchModal({
     productStocks,
     materialStocks,
     maxStock,
-    userId,
     onClose,
     onSuccess,
 }: ProduceBatchModalProps) {
@@ -131,23 +130,16 @@ export default function ProduceBatchModal({
         setIsSubmitting(true);
         setApiError(null);
 
-        // Matches the C# ProductStock { Product, Quantity, UserId }
+        // Matches the C# ProductStock { Product, Quantity }. The server sets the user from the token.
         const payload = {
             product: selectedProduct,
             quantity: qtyNumber,
-            userId,
         };
 
         try {
             // Replace with your actual endpoint
-            const response = await fetch('/api/productstock/add', {
+            const response = await apiFetch('/api/product/batch', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    // If the API uses JWT instead of cookies, add:
-                    // Authorization: `Bearer ${token}`,
-                },
-                credentials: 'include',
                 body: JSON.stringify(payload),
             });
 

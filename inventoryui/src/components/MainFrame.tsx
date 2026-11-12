@@ -75,7 +75,7 @@ export default function MainFrame() {
                 case 'Reports': return <Reports />;
             }
         }
-        return <MapCanvas onBuildingClick={handleBuildingClick} />;
+        return <MapCanvas onBuildingClick={handleBuildingClick} isLoggedIn={isAuthenticated} />;
     };
 
     return (

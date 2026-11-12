@@ -1,6 +1,7 @@
 // src/features/workshop/AddProductTypeModal.tsx
 import { useState } from 'react';
 import type { CSSProperties, FormEvent } from 'react';
+import { apiFetch } from '../../api';
 import type { Product, Unit } from '../../types/inventory';
 
 interface AddProductTypeModalProps {
@@ -81,14 +82,8 @@ export default function AddProductTypeModal({
         };
 
         try {
-            const response = await fetch('/api/product/add', {
+            const response = await apiFetch('/api/product/add', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    // If the API uses JWT instead of cookies, add:
-                    // Authorization: `Bearer ${token}`,
-                },
-                credentials: 'include', // sends the auth cookie for [Authorize]
                 body: JSON.stringify(payload),
             });
 

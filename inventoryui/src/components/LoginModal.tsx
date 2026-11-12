@@ -1,9 +1,6 @@
 // src/components/LoginModal.tsx
 import React, { useState } from "react";
-
-const BASE_BACKEND_URL = import.meta.env.DEV
-    ? "https://localhost:7045"                     
-    : "https://webinventory-ia5j.onrender.com";
+import { BASE_BACKEND_URL } from '../api';
 
 interface LoginModalProps {
     onSuccess: () => void;

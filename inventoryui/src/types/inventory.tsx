@@ -18,7 +18,6 @@ export interface UnitStock {
     id: number;
     quantity: number;
     unit: Unit;
-    user?: User;
 }
 
 export interface Product {
@@ -28,15 +27,8 @@ export interface Product {
     items: Item[];
 }
 
-export interface User {
-    id: number;
-    // add the other User fields you have
-}
-
 export interface ProductStock {
     id: number;
-    product: Product;
+    product: Pick<Product, 'id' | 'name' | 'sku'>; // no items needed here
     quantity: number;
-    userId: number;
-    user?: User;
 }

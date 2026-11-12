@@ -90,7 +90,12 @@ namespace WebInventory.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("Products");
                 });
@@ -109,14 +114,9 @@ namespace WebInventory.Migrations
                     b.Property<int>("Quantity")
                         .HasColumnType("integer");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
-
                     b.HasKey("Id");
 
                     b.HasIndex("ProductId");
-
-                    b.HasIndex("UserId");
 
                     b.ToTable("ProductStocks");
                 });
@@ -160,7 +160,7 @@ namespace WebInventory.Migrations
                     b.Property<int?>("UnitId")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("UserId")
+                    b.Property<int>("UserId")
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
@@ -209,21 +209,24 @@ namespace WebInventory.Migrations
                     b.Navigation("Unit");
                 });
 
-            modelBuilder.Entity("WebInventory.Models.ProductStock", b =>
+            modelBuilder.Entity("WebInventory.Models.Product", b =>
                 {
-                    b.HasOne("WebInventory.Models.Product", "Product")
-                        .WithMany()
-                        .HasForeignKey("ProductId");
-
                     b.HasOne("WebInventory.Models.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Product");
-
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("WebInventory.Models.ProductStock", b =>
+                {
+                    b.HasOne("WebInventory.Models.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId");
+
+                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("WebInventory.Models.UnitStock", b =>
@@ -234,7 +237,9 @@ namespace WebInventory.Migrations
 
                     b.HasOne("WebInventory.Models.User", "User")
                         .WithMany()
-                        .HasForeignKey("UserId");
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Unit");
 

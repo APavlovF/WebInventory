@@ -35,9 +35,8 @@ public class WarehouseController(EfDbContext context, IDatabaseReader databaseRe
             .Select(m => new
             {
                 m.Id,
-                m.Unit?.Name,
-                m.Unit?.Sku,
-                m.Quantity
+                m.Quantity,
+                Unit = new { m.Unit!.Id, m.Unit.Name, m.Unit.Measurement, m.Unit.Sku }
             })
             .ToList();
 

@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using Microsoft.EntityFrameworkCore;
 using WebInventory.Data;
 using WebInventory.Models;
 using WebInventory.Services;
@@ -17,8 +18,21 @@ public class ProductController(EfDbContext context, IDatabaseReader databaseRead
     public async Task<IActionResult> AddBatch([FromBody] List<ProductStock> products)
     {
         int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        products.ForEach(p => p.UserId = userId);
-        context.ProductStocks.AddRange(products);
+        Dictionary<string, ProductStock> dbProducts = await context.ProductStocks.Where(p => p.Product.UserId == userId)
+            .ToDictionaryAsync(k => k.Product.Name);
+        foreach (ProductStock product in products)
+        {
+            if (dbProducts.TryGetValue(product.Product.Name, out ProductStock p))
+            {
+                product.Quantity += p.Quantity;
+            }
+            else
+            {
+                product.Product.UserId = userId;
+                context.ProductStocks.Add(product);
+            }
+        }
+
         await context.SaveChangesAsync();
 
         return Ok();
@@ -33,6 +47,8 @@ public class ProductController(EfDbContext context, IDatabaseReader databaseRead
             return BadRequest("Product data is required.");
         }
 
+        int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        product.UserId = userId;
         context.Products.Add(product);
         await context.SaveChangesAsync();
 
@@ -44,16 +60,26 @@ public class ProductController(EfDbContext context, IDatabaseReader databaseRead
     public async Task<IActionResult> GetProducts()
     {
         int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        IEnumerable<Product> products = await databaseReader.Read<Product>();
+        var result = products.Where(p => p.UserId == userId).ToList();
+
+        return Ok(result);
+    }
+
+    [Authorize]
+    [HttpPost("stock")]
+    public async Task<IActionResult> GetProductStock()
+    {
+        int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         IEnumerable<ProductStock> products = await databaseReader.Read<ProductStock>();
 
         var result = products
-            .Where(p => p.UserId == userId)
+            .Where(p => p.Product.UserId == userId)
             .Select(p => new
             {
                 p.Id,
-                p.Product?.Name,
-                p.Product?.Sku,
-                p.Quantity
+                p.Quantity,
+                Product = new { p.Product!.Id, p.Product.Name, p.Product.Sku }
             })
             .ToList();
 
