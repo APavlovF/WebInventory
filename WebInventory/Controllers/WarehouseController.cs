@@ -1,25 +1,24 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using Microsoft.EntityFrameworkCore;
 using WebInventory.Data;
 using WebInventory.Models;
-using WebInventory.Services;
 
 namespace WebInventory.Controllers;
 
 [ApiController]
 [Route("api/materials")]
-public class WarehouseController(IDatabaseReader databaseReader) : ControllerBase
+public class WarehouseController(EfDbContext context) : ControllerBase
 {
     [Authorize]
     [HttpPost("fetch")]
     public async Task<IActionResult> GetMaterials()
     {
         int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        IEnumerable<UnitStock> materials = await databaseReader.Read<UnitStock>();
-
+        List<UnitStock> materials =
+            await context.UnitStocks.Where(s => s.UserId == userId).Include(s => s.Unit).ToListAsync();
         var result = materials
-            .Where(m => m.UserId == userId)
             .Select(m => new
             {
                 m.Id,

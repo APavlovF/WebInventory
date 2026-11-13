@@ -134,6 +134,8 @@ export default function Combobox({
             zIndex: 1000,
             maxHeight: '180px',
             overflowY: 'auto',
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'rgba(20, 184, 166, 0.5) #0f172a', // dark theme scrollbar
             background: '#1e293b',
             border: '1px solid rgba(20, 184, 166, 0.5)',
             borderRadius: '4px',

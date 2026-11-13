@@ -164,7 +164,7 @@ export default function ProduceBatchModal({
 
         try {
             // Replace with your AddBatch route
-            const response = await apiFetch('/api/productstock/add', {
+            const response = await apiFetch('/api/product/batch', {
                 method: 'POST',
                 body: JSON.stringify(payload),
             });

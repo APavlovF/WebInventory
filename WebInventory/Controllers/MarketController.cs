@@ -7,6 +7,8 @@ using WebInventory.Models;
 
 namespace WebInventory.Controllers;
 
+[ApiController]
+[Route("api/market")]
 public class MarketController(EfDbContext context) : ControllerBase
 {
     [Authorize]
@@ -15,7 +17,7 @@ public class MarketController(EfDbContext context) : ControllerBase
     {
         int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         Dictionary<string, UnitStock> dbMaterials = await context.UnitStocks.Where(u => u.UserId == userId)
-            .ToDictionaryAsync(k => k.Unit.Name);
+            .Include(u => u.Unit).ToDictionaryAsync(k => k.Unit.Name);
         foreach (UnitStock material in materials)
         {
             if (dbMaterials.TryGetValue(material.Unit.Name, out UnitStock u))
@@ -40,7 +42,7 @@ public class MarketController(EfDbContext context) : ControllerBase
     {
         int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         Dictionary<string, ProductStock> stock = await context.ProductStocks.Where(p => p.Product.UserId == userId)
-            .ToDictionaryAsync(k => k.Product.Name);
+            .Include(p => p.Product).ToDictionaryAsync(k => k.Product.Name);
         foreach (ProductStock product in products)
         {
             if (stock.TryGetValue(product.Product.Name, out ProductStock s))

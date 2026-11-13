@@ -22,6 +22,8 @@ export const modalStyle: CSSProperties = {
     maxWidth: '95vw',
     maxHeight: '90vh',
     overflowY: 'auto',
+    scrollbarWidth: 'thin',
+    scrollbarColor: 'rgba(20, 184, 166, 0.5) #0f172a', // dark theme scrollbar
     color: '#f8fafc',
     boxShadow: '0 10px 25px rgba(0,0,0,0.6)',
 };
@@ -30,6 +32,8 @@ export const modalStyle: CSSProperties = {
 export const scrollAreaStyle: CSSProperties = {
     maxHeight: '240px',
     overflowY: 'auto',
+    scrollbarWidth: 'thin',
+    scrollbarColor: 'rgba(20, 184, 166, 0.5) #0f172a', // dark theme scrollbar
     scrollbarGutter: 'stable',
 };
 
@@ -67,6 +71,8 @@ export const summaryStyle: CSSProperties = {
     marginTop: '14px',
     maxHeight: '140px',
     overflowY: 'auto',
+    scrollbarWidth: 'thin',
+    scrollbarColor: 'rgba(20, 184, 166, 0.5) #0f172a', // dark theme scrollbar
 };
 
 export const inputStyle: CSSProperties = {
