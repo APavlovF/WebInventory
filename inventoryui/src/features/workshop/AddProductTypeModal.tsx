@@ -1,7 +1,9 @@
 // src/features/workshop/AddProductTypeModal.tsx
 import { useState } from 'react';
-import type { CSSProperties, FormEvent } from 'react';
+import type { SyntheticEvent } from 'react';
 import { apiFetch } from '../../api';
+import Combobox from '../shared/Combobox';
+import { overlayStyle, modalStyle, scrollAreaStyle, labelStyle, inputStyle, addBtnStyle, removeBtnStyle, cancelBtnStyle, submitBtnStyle } from '../shared/modalStyles';
 import type { Product, Unit } from '../../types/inventory';
 
 interface AddProductTypeModalProps {
@@ -63,7 +65,7 @@ export default function AddProductTypeModal({
         sku.trim().length > 0 &&
         rows.every((r) => r.unitId !== '' && Number(r.quantity) > 0);
 
-    const handleSubmit = async (e: FormEvent) => {
+    const handleSubmit = async (e: SyntheticEvent) => {
         e.preventDefault();
         if (!isFormValid || isSubmitting) return;
 
@@ -150,27 +152,21 @@ export default function AddProductTypeModal({
                                 key={row.rowId}
                                 style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}
                             >
-                                <select
+                                <Combobox
                                     value={row.unitId}
-                                    onChange={(e) => handleRowChange(row.rowId, 'unitId', e.target.value)}
-                                    style={{ ...inputStyle, flex: 2 }}
-                                >
-                                    <option value="">-- Select Material --</option>
-                                    {materials.map((m) => (
-                                        <option
-                                            key={m.id}
-                                            value={m.id}
-                                            disabled={isTakenByOtherRow(row.rowId, m.id)}
-                                        >
-                                            {m.name}
-                                            {m.measurement ? ` (${m.measurement})` : ''}
-                                        </option>
-                                    ))}
-                                </select>
+                                    onChange={(v) => handleRowChange(row.rowId, 'unitId', v)}
+                                    placeholder="-- Select Material --"
+                                    style={{ flex: 2 }}
+                                    options={materials.map((m) => ({
+                                        value: String(m.id),
+                                        label: m.measurement ? `${m.name} (${m.measurement})` : m.name,
+                                        disabled: isTakenByOtherRow(row.rowId, m.id),
+                                    }))}
+                                />
 
                                 <input
                                     type="number"
-                                    min="0.01"
+                                    min="0"
                                     step="any"
                                     value={row.quantity}
                                     onChange={(e) => handleRowChange(row.rowId, 'quantity', e.target.value)}
@@ -234,95 +230,3 @@ export default function AddProductTypeModal({
         </div>
     );
 }
-
-const overlayStyle: CSSProperties = {
-    position: 'fixed',
-    inset: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 100,
-    fontFamily: 'monospace',
-};
-
-const modalStyle: CSSProperties = {
-    background: '#0f172a',
-    border: '1px solid rgba(20, 184, 166, 0.5)',
-    borderRadius: '8px',
-    padding: '24px',
-    width: '440px',
-    maxWidth: '95vw',
-    maxHeight: '90vh',
-    overflowY: 'auto',
-    color: '#f8fafc',
-    boxShadow: '0 10px 25px rgba(0,0,0,0.6)',
-};
-
-const labelStyle: CSSProperties = {
-    display: 'block',
-    fontSize: '13px',
-    color: '#94a3b8',
-    marginBottom: '6px',
-};
-
-const inputStyle: CSSProperties = {
-    width: '100%',
-    padding: '8px 10px',
-    background: '#1e293b',
-    border: '1px solid rgba(20, 184, 166, 0.4)',
-    borderRadius: '4px',
-    color: '#f8fafc',
-    fontFamily: 'monospace',
-    fontSize: '14px',
-    boxSizing: 'border-box',
-};
-
-const addBtnStyle: CSSProperties = {
-    background: 'rgba(20, 184, 166, 0.1)',
-    color: '#2dd4bf',
-    border: '1px dashed rgba(20, 184, 166, 0.6)',
-    borderRadius: '4px',
-    padding: '6px 12px',
-    fontFamily: 'monospace',
-    fontSize: '13px',
-    marginTop: '4px',
-};
-
-// Same scroll behaviour as the batch form: the list scrolls when there are many materials
-const scrollAreaStyle: CSSProperties = {
-    maxHeight: '240px',
-    overflowY: 'auto',
-    scrollbarGutter: 'stable',
-};
-
-const removeBtnStyle: CSSProperties = {
-    width: '36px',
-    flexShrink: 0,
-    background: 'rgba(248, 113, 113, 0.15)',
-    color: '#f87171',
-    border: '1px solid rgba(248, 113, 113, 0.4)',
-    borderRadius: '4px',
-    padding: '8px 0',
-    cursor: 'pointer',
-};
-
-const cancelBtnStyle: CSSProperties = {
-    background: 'transparent',
-    color: '#94a3b8',
-    border: '1px solid #475569',
-    borderRadius: '4px',
-    padding: '8px 16px',
-    fontFamily: 'monospace',
-    cursor: 'pointer',
-};
-
-const submitBtnStyle: CSSProperties = {
-    background: '#14b8a6',
-    color: '#0f172a',
-    border: 'none',
-    borderRadius: '4px',
-    padding: '8px 16px',
-    fontFamily: 'monospace',
-    fontWeight: 'bold',
-};

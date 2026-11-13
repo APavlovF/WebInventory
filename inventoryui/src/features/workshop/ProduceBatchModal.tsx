@@ -1,7 +1,9 @@
 // src/features/workshop/ProduceBatchModal.tsx
 import { useState, useMemo } from 'react';
-import type { CSSProperties, FormEvent } from 'react';
+import type { SyntheticEvent } from 'react';
 import { apiFetch } from '../../api';
+import Combobox from '../shared/Combobox';
+import { overlayStyle, modalStyle, scrollAreaStyle, rowStyle, headerLabelStyle, summaryStyle, inputStyle, addBtnStyle, removeBtnStyle, cancelBtnStyle, submitBtnStyle } from '../shared/modalStyles';
 import type { Product, ProductStock, UnitStock } from '../../types/inventory';
 
 interface ProduceBatchModalProps {
@@ -83,7 +85,7 @@ export default function ProduceBatchModal({
         });
 
         return Array.from(totals.entries()).map(([unitId, t]) => {
-            const available = availableByUnitId.get(unitId) || 0;
+            const available = round(availableByUnitId.get(unitId) || 0);
             const required = round(t.required);
             return { unitId, ...t, required, available, isInsufficient: required > available };
         });
@@ -147,7 +149,7 @@ export default function ProduceBatchModal({
     const isTakenByOtherRow = (rowId: string, productId: number) =>
         rows.some((r) => r.rowId !== rowId && r.productId === String(productId));
 
-    const handleSubmit = async (e: FormEvent) => {
+    const handleSubmit = async (e: SyntheticEvent) => {
         e.preventDefault();
         if (!isFormValid || isSubmitting) return;
 
@@ -194,7 +196,7 @@ export default function ProduceBatchModal({
                     <div style={scrollAreaStyle}>
                         <div style={rowStyle(true)}>
                             <span style={{ ...headerLabelStyle, flex: 3 }}>Select Product</span>
-                            <span style={{ ...headerLabelStyle, flex: 1 }}>Quantity</span>
+                            <span style={{ ...headerLabelStyle, flex: 1 }}>Quantity to Produce</span>
                             <span style={{ width: '36px', flexShrink: 0 }} />
                         </div>
 
@@ -212,30 +214,20 @@ export default function ProduceBatchModal({
                             return (
                                 <div key={info.row.rowId} style={{ marginBottom: '8px' }}>
                                     <div style={rowStyle(false)}>
-                                        <select
+                                        <Combobox
                                             value={info.row.productId}
-                                            onChange={(e) =>
-                                                handleRowChange(info.row.rowId, 'productId', e.target.value)
-                                            }
-                                            style={{ ...inputStyle, flex: 3 }}
-                                        >
-                                            <option value="">-- Choose Product --</option>
-                                            {products.map((p) => {
+                                            onChange={(v) => handleRowChange(info.row.rowId, 'productId', v)}
+                                            placeholder="-- Choose Product --"
+                                            style={{ flex: 3 }}
+                                            options={products.map((p) => {
                                                 const inStock = stockByProductId.get(p.id) || 0;
-                                                return (
-                                                    <option
-                                                        key={p.id}
-                                                        value={p.id}
-                                                        disabled={
-                                                            inStock >= maxStock ||
-                                                            isTakenByOtherRow(info.row.rowId, p.id)
-                                                        }
-                                                    >
-                                                        {p.name} (In stock: {inStock} / {maxStock})
-                                                    </option>
-                                                );
+                                                return {
+                                                    value: String(p.id),
+                                                    label: `${p.name} (In stock: ${inStock} / ${maxStock})`,
+                                                    disabled: inStock >= maxStock || isTakenByOtherRow(info.row.rowId, p.id),
+                                                };
                                             })}
-                                        </select>
+                                        />
 
                                         <input
                                             type="number"
@@ -344,118 +336,3 @@ export default function ProduceBatchModal({
         </div>
     );
 }
-
-const overlayStyle: CSSProperties = {
-    position: 'fixed',
-    inset: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 100,
-    fontFamily: 'monospace',
-};
-
-const modalStyle: CSSProperties = {
-    background: '#0f172a',
-    border: '1px solid rgba(20, 184, 166, 0.5)',
-    borderRadius: '8px',
-    padding: '24px',
-    width: '560px',
-    maxWidth: '95vw',
-    maxHeight: '90vh',
-    overflowY: 'auto',
-    color: '#f8fafc',
-    boxShadow: '0 10px 25px rgba(0,0,0,0.6)',
-};
-
-// The list of rows scrolls when there are many; the header row is sticky inside it
-const scrollAreaStyle: CSSProperties = {
-    maxHeight: '240px',
-    overflowY: 'auto',
-    scrollbarGutter: 'stable',
-};
-
-const rowStyle = (isHeader: boolean): CSSProperties => ({
-    display: 'flex',
-    gap: '8px',
-    alignItems: 'center',
-    ...(isHeader && {
-        position: 'sticky',
-        top: 0,
-        background: '#0f172a',
-        zIndex: 1,
-        paddingBottom: '6px',
-    }),
-});
-
-const headerLabelStyle: CSSProperties = {
-    fontSize: '13px',
-    color: '#94a3b8',
-    textAlign: 'center',
-};
-
-const summaryStyle: CSSProperties = {
-    background: '#1e293b',
-    border: '1px solid rgba(20, 184, 166, 0.25)',
-    borderRadius: '6px',
-    padding: '12px',
-    marginTop: '14px',
-    maxHeight: '140px',
-    overflowY: 'auto',
-};
-
-const inputStyle: CSSProperties = {
-    width: '100%',
-    minWidth: 0,
-    padding: '8px 10px',
-    background: '#1e293b',
-    border: '1px solid rgba(20, 184, 166, 0.4)',
-    borderRadius: '4px',
-    color: '#f8fafc',
-    fontFamily: 'monospace',
-    fontSize: '14px',
-    boxSizing: 'border-box',
-};
-
-const addBtnStyle: CSSProperties = {
-    background: 'rgba(20, 184, 166, 0.1)',
-    color: '#2dd4bf',
-    border: '1px dashed rgba(20, 184, 166, 0.6)',
-    borderRadius: '4px',
-    padding: '6px 12px',
-    fontFamily: 'monospace',
-    fontSize: '13px',
-    marginTop: '8px',
-};
-
-const removeBtnStyle: CSSProperties = {
-    width: '36px',
-    flexShrink: 0,
-    background: 'rgba(248, 113, 113, 0.15)',
-    color: '#f87171',
-    border: '1px solid rgba(248, 113, 113, 0.4)',
-    borderRadius: '4px',
-    padding: '8px 0',
-    cursor: 'pointer',
-};
-
-const cancelBtnStyle: CSSProperties = {
-    background: 'transparent',
-    color: '#94a3b8',
-    border: '1px solid #475569',
-    borderRadius: '4px',
-    padding: '8px 16px',
-    fontFamily: 'monospace',
-    cursor: 'pointer',
-};
-
-const submitBtnStyle: CSSProperties = {
-    background: '#14b8a6',
-    color: '#0f172a',
-    border: 'none',
-    borderRadius: '4px',
-    padding: '8px 16px',
-    fontFamily: 'monospace',
-    fontWeight: 'bold',
-};

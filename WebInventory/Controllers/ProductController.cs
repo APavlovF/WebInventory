@@ -26,7 +26,7 @@ public class ProductController(EfDbContext context, IDatabaseReader databaseRead
         {
             if (dbProducts.TryGetValue(productStock.Product.Name, out ProductStock p))
             {
-                productStock.Quantity += p.Quantity;
+                p.Quantity += productStock.Quantity;
             }
             else
             {

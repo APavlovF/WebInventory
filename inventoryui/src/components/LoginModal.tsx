@@ -15,7 +15,7 @@ export default function LoginModal({ onSuccess, onClose }: LoginModalProps) {
     const [successMessage, setSuccessMessage] = useState<string>("");
     const [isLoading, setIsLoading] = useState<boolean>(false);
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.SyntheticEvent) => {
         e.preventDefault();
         setIsLoading(true);
         setErrorMessage("");

@@ -5,6 +5,8 @@ import BuildingNode from './BuildingNode';
 import { useInventory } from '../workshop/UseInventory';
 import AddProductTypeModal from '../workshop/AddProductTypeModal';
 import ProduceBatchModal from '../workshop/ProduceBatchModal';
+import BuyMaterialsModal from '../market/BuyMaterialsModal';
+import SellProductsModal from '../market/SellProductsModal';
 
 const MAX_STOCK = 100;      // your max stock limit
 
@@ -16,7 +18,7 @@ interface MapCanvasProps {
 export default function MapCanvas({ onBuildingClick, isLoggedIn }: MapCanvasProps) {
     const [dimensions, setDimensions] = useState({ width: 1200, height: 800 });
 
-    const [activeModal, setActiveModal] = useState<'addProduct' | 'produceBatch' | null>(null);
+    const [activeModal, setActiveModal] = useState < 'addProduct' | 'produceBatch' | 'buyMaterials' | 'sellProducts' | null>(null);
     const { products, productStocks, unitStocks, units, refresh } = useInventory(isLoggedIn);
 
     // Start with the right-facing asset since it begins at Warehouse traveling up to the Office
@@ -292,7 +294,11 @@ export default function MapCanvas({ onBuildingClick, isLoggedIn }: MapCanvasProp
             <BuildingNode name="Office" top={`${officePt.y - 75}px`} left={`${officePt.x - 65}px`} imgSrc="map-office.png" onClick={() => onBuildingClick('Office')} />
             <BuildingNode name="Workshop" top={`${workshopPt.y - 75}px`} left={`${workshopPt.x - 65}px`} imgSrc="map-workshop.png" onClick={() => onBuildingClick('Workshop')}
                 onNewProduct={() => setActiveModal('addProduct')} onCreateProducts={() => setActiveModal('produceBatch')} />
-            <BuildingNode name="Market" top={`${marketPt.y - 75}px`} left={`${marketPt.x - 65}px`} imgSrc="map-market.png" onClick={() => onBuildingClick('Market')} />
+            <BuildingNode name="Market" top={`${marketPt.y - 75}px`} left={`${marketPt.x - 65}px`} imgSrc="map-market.png"
+                onClick={() => onBuildingClick('Market')}
+                onBuyMaterials={() => setActiveModal('buyMaterials')}
+                onSellProducts={() => setActiveModal('sellProducts')}
+            />
             {/* Workshop forms */}
             <AddProductTypeModal
                 isOpen={activeModal === 'addProduct'}
@@ -307,6 +313,23 @@ export default function MapCanvas({ onBuildingClick, isLoggedIn }: MapCanvasProp
                 productStocks={productStocks}
                 materialStocks={unitStocks}
                 maxStock={MAX_STOCK}
+                onClose={() => setActiveModal(null)}
+                onSuccess={() => refresh()}
+            />
+
+            <BuyMaterialsModal
+                isOpen={activeModal === 'buyMaterials'}
+                units={units}
+                materialStocks={unitStocks}
+                maxStock={1000}
+                onClose={() => setActiveModal(null)}
+                onSuccess={() => refresh()}
+            />
+
+            <SellProductsModal
+                isOpen={activeModal === 'sellProducts'}
+                products={products}
+                productStocks={productStocks}
                 onClose={() => setActiveModal(null)}
                 onSuccess={() => refresh()}
             />

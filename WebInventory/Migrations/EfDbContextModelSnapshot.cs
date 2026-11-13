@@ -59,8 +59,9 @@ namespace WebInventory.Migrations
                     b.Property<int?>("ProductId")
                         .HasColumnType("integer");
 
-                    b.Property<int>("Quantity")
-                        .HasColumnType("integer");
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
 
                     b.Property<int?>("UnitId")
                         .HasColumnType("integer");
@@ -154,8 +155,9 @@ namespace WebInventory.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("Quantity")
-                        .HasColumnType("integer");
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
 
                     b.Property<int?>("UnitId")
                         .HasColumnType("integer");

@@ -20,7 +20,7 @@ public class MarketController(EfDbContext context) : ControllerBase
         {
             if (dbMaterials.TryGetValue(material.Unit.Name, out UnitStock u))
             {
-                material.Quantity += u.Quantity;
+                u.Quantity += material.Quantity;
             }
             else
             {
