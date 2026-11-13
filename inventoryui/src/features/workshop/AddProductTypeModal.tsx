@@ -144,6 +144,7 @@ export default function AddProductTypeModal({
                     <div style={{ marginBottom: '12px' }}>
                         <label style={labelStyle}>Materials (quantity per 1 product)</label>
 
+                        <div style={scrollAreaStyle}>
                         {rows.map((row) => (
                             <div
                                 key={row.rowId}
@@ -177,18 +178,20 @@ export default function AddProductTypeModal({
                                     style={{ ...inputStyle, flex: 1 }}
                                 />
 
-                                {rows.length > 1 && (
-                                    <button
-                                        type="button"
-                                        onClick={() => handleRemoveRow(row.rowId)}
-                                        style={removeBtnStyle}
-                                        title="Remove material"
-                                    >
-                                        ✕
-                                    </button>
-                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => handleRemoveRow(row.rowId)}
+                                    style={{
+                                        ...removeBtnStyle,
+                                        visibility: rows.length > 1 ? 'visible' : 'hidden',
+                                    }}
+                                    title="Remove material"
+                                >
+                                    ✕
+                                </button>
                             </div>
                         ))}
+                        </div>
 
                         <button
                             type="button"
@@ -250,6 +253,8 @@ const modalStyle: CSSProperties = {
     padding: '24px',
     width: '440px',
     maxWidth: '95vw',
+    maxHeight: '90vh',
+    overflowY: 'auto',
     color: '#f8fafc',
     boxShadow: '0 10px 25px rgba(0,0,0,0.6)',
 };
@@ -284,12 +289,21 @@ const addBtnStyle: CSSProperties = {
     marginTop: '4px',
 };
 
+// Same scroll behaviour as the batch form: the list scrolls when there are many materials
+const scrollAreaStyle: CSSProperties = {
+    maxHeight: '240px',
+    overflowY: 'auto',
+    scrollbarGutter: 'stable',
+};
+
 const removeBtnStyle: CSSProperties = {
+    width: '36px',
+    flexShrink: 0,
     background: 'rgba(248, 113, 113, 0.15)',
     color: '#f87171',
     border: '1px solid rgba(248, 113, 113, 0.4)',
     borderRadius: '4px',
-    padding: '8px 10px',
+    padding: '8px 0',
     cursor: 'pointer',
 };
 

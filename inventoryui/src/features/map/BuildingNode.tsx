@@ -106,7 +106,8 @@ export default function BuildingNode({
                         ...panelStyle,
                         bottom: '100%',
                         marginBottom: '10px',
-                        flexDirection: 'row',
+                        flexDirection: 'column',
+                        padding: '16px 20px',
                     }}
                 >
                     <button
@@ -136,6 +137,7 @@ export default function BuildingNode({
                         transform: 'translateY(-50%)',
                         marginRight: '12px',
                         flexDirection: 'column',
+                        padding: '16px 20px',                        
                     }}
                 >
                     <button

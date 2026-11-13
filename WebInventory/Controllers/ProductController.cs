@@ -20,16 +20,26 @@ public class ProductController(EfDbContext context, IDatabaseReader databaseRead
         int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         Dictionary<string, ProductStock> dbProducts = await context.ProductStocks.Where(p => p.Product.UserId == userId)
             .ToDictionaryAsync(k => k.Product.Name);
-        foreach (ProductStock product in products)
+        Dictionary<string, UnitStock> dbMaterials = await context.UnitStocks.Where(u => u.UserId == userId)
+            .ToDictionaryAsync(k => k.Unit.Name);
+        foreach (ProductStock productStock in products)
         {
-            if (dbProducts.TryGetValue(product.Product.Name, out ProductStock p))
+            if (dbProducts.TryGetValue(productStock.Product.Name, out ProductStock p))
             {
-                product.Quantity += p.Quantity;
+                productStock.Quantity += p.Quantity;
             }
             else
             {
-                product.Product.UserId = userId;
-                context.ProductStocks.Add(product);
+                productStock.Product.UserId = userId;
+                context.ProductStocks.Add(productStock);
+            }
+
+            foreach (Item item in productStock.Product.Items)
+            {
+                if (dbMaterials.TryGetValue(item.Unit.Name, out UnitStock u))
+                {
+                    u.Quantity -= item.Quantity * productStock.Quantity;
+                }
             }
         }
 

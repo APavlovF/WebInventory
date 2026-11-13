@@ -9,20 +9,8 @@ namespace WebInventory.Controllers;
 
 [ApiController]
 [Route("api/materials")]
-public class WarehouseController(EfDbContext context, IDatabaseReader databaseReader) : ControllerBase
+public class WarehouseController(IDatabaseReader databaseReader) : ControllerBase
 {
-    [Authorize]
-    [HttpPost("batch")]
-    public async Task<IActionResult> AddBatch([FromBody] List<UnitStock> materials)
-    {
-        int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        materials.ForEach(p => p.UserId = userId);
-        context.UnitStocks.AddRange(materials);
-        await context.SaveChangesAsync();
-
-        return Ok();
-    }
-
     [Authorize]
     [HttpPost("fetch")]
     public async Task<IActionResult> GetMaterials()

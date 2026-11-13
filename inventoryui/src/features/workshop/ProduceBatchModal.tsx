@@ -2,22 +2,25 @@
 import { useState, useMemo } from 'react';
 import type { CSSProperties, FormEvent } from 'react';
 import { apiFetch } from '../../api';
-import type { Item, Product, ProductStock, UnitStock } from '../../types/inventory';
-
-export interface ConsumedMaterial {
-    unitId: number;
-    consumed: number;
-}
+import type { Product, ProductStock, UnitStock } from '../../types/inventory';
 
 interface ProduceBatchModalProps {
     isOpen: boolean;
-    products: Product[];          // Product types; each Item = a material (Unit) + quantity needed for ONE product
-    productStocks: ProductStock[]; // Existing product stock records (used to sum current stock per product)
+    products: Product[];           // Product types; each Item = a material (Unit) + quantity needed for ONE product
+    productStocks: ProductStock[]; // Existing product stock records (summed per product for current stock)
     materialStocks: UnitStock[];   // Available material stock (UnitStock.Unit + UnitStock.Quantity)
     maxStock: number;              // Max stock limit, applied per product type
     onClose: () => void;
-    onSuccess: (saved: ProductStock, consumedMaterials: ConsumedMaterial[]) => void;
+    onSuccess: () => void;         // Called after the batch is saved (parent refreshes its data)
 }
+
+interface BatchRow {
+    rowId: string;
+    productId: string; // '' = nothing selected yet
+    quantity: string;
+}
+
+const newRow = (): BatchRow => ({ rowId: crypto.randomUUID(), productId: '', quantity: '1' });
 
 const round = (n: number) => Math.round(n * 1e6) / 1e6;
 
@@ -30,8 +33,7 @@ export default function ProduceBatchModal({
     onClose,
     onSuccess,
 }: ProduceBatchModalProps) {
-    const [selectedProductId, setSelectedProductId] = useState('');
-    const [batchQuantity, setBatchQuantity] = useState('1');
+    const [rows, setRows] = useState<BatchRow[]>([newRow()]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [apiError, setApiError] = useState<string | null>(null);
 
@@ -54,66 +56,76 @@ export default function ProduceBatchModal({
         return map;
     }, [materialStocks]);
 
-    const selectedProduct = useMemo(
-        () => products.find((p) => String(p.id) === selectedProductId),
-        [products, selectedProductId]
+    const productsById = useMemo(() => {
+        const map = new Map<string, Product>();
+        products.forEach((p) => map.set(String(p.id), p));
+        return map;
+    }, [products]);
+
+    // Materials needed by ALL rows together (rows share the same material stock)
+    const materialTotals = useMemo(() => {
+        const totals = new Map<number, { name: string; measurement: string; required: number }>();
+
+        rows.forEach((row) => {
+            const product = productsById.get(row.productId);
+            const qty = Number(row.quantity);
+            if (!product || !(qty > 0)) return;
+
+            (product.items ?? []).forEach((item) => {
+                const current = totals.get(item.unit.id) ?? {
+                    name: item.unit.name,
+                    measurement: item.unit.measurement,
+                    required: 0,
+                };
+                current.required += item.quantity * qty;
+                totals.set(item.unit.id, current);
+            });
+        });
+
+        return Array.from(totals.entries()).map(([unitId, t]) => {
+            const available = availableByUnitId.get(unitId) || 0;
+            const required = round(t.required);
+            return { unitId, ...t, required, available, isInsufficient: required > available };
+        });
+    }, [rows, productsById, availableByUnitId]);
+
+    const insufficientUnitIds = new Set(
+        materialTotals.filter((m) => m.isInsufficient).map((m) => m.unitId)
     );
 
-    const qtyNumber = Number(batchQuantity) || 0;
+    // Problems of each row
+    const rowInfos = rows.map((row) => {
+        const product = productsById.get(row.productId);
+        const qty = Number(row.quantity);
+        const qtyValid = Number.isInteger(qty) && qty > 0;
+        const existing = product ? stockByProductId.get(product.id) || 0 : 0;
+        const items = product?.items ?? [];
 
-    const existingQty = selectedProduct ? stockByProductId.get(selectedProduct.id) || 0 : 0;
-    const roomLeft = Math.max(0, maxStock - existingQty);
-    const exceedsStockLimit = Boolean(selectedProduct) && qtyNumber > roomLeft;
-
-    // Required vs available for each material of the selected product
-    const requirements = useMemo(() => {
-        if (!selectedProduct) return [];
-
-        // Merge in case the same unit appears twice in the product's items
-        const perUnitByUnit = new Map<number, { item: Item; perUnit: number }>();
-        (selectedProduct.items ?? []).forEach((item) => {
-            const prev = perUnitByUnit.get(item.unit.id);
-            const perUnit = item.quantity + (prev?.perUnit || 0);
-            perUnitByUnit.set(item.unit.id, { item, perUnit });
-        });
-
-        return Array.from(perUnitByUnit.values()).map(({ item, perUnit }) => {
-            const available = availableByUnitId.get(item.unit.id) || 0;
-            const required = round(perUnit * qtyNumber);
-            return {
-                unitId: item.unit.id,
-                name: item.unit.name,
-                measurement: item.unit.measurement,
-                perUnit,
-                required,
-                available,
-                isInsufficient: required > available,
-                maxUnits: perUnit > 0 ? Math.floor(available / perUnit) : Infinity,
-            };
-        });
-    }, [selectedProduct, availableByUnitId, qtyNumber]);
-
-    const hasInsufficientMaterials = requirements.some((r) => r.isInsufficient);
-
-    // A recipe line without a quantity would make the product consume nothing: block it
-    const hasInvalidRecipe = requirements.some((r) => !(r.perUnit > 0));
-
-    // Largest batch allowed right now (materials and stock limit)
-    const maxProducible = Math.min(roomLeft, ...requirements.map((r) => r.maxUnits));
+        return {
+            row,
+            product,
+            qtyValid,
+            existing,
+            invalidRecipe: Boolean(product) && items.some((i) => !(i.quantity > 0)),
+            exceedsLimit: Boolean(product) && qtyValid && existing + qty > maxStock,
+            lacksMaterials:
+                Boolean(product) && qtyValid && items.some((i) => insufficientUnitIds.has(i.unit.id)),
+        };
+    });
 
     const isFormValid =
-        Boolean(selectedProduct) &&
-        Number.isInteger(qtyNumber) &&
-        qtyNumber > 0 &&
-        !hasInvalidRecipe &&
-        !hasInsufficientMaterials &&
-        !exceedsStockLimit;
+        rows.length > 0 &&
+        rowInfos.every(
+            (r) =>
+                r.product && r.qtyValid && !r.invalidRecipe && !r.exceedsLimit && !r.lacksMaterials
+        );
+
+    const canAddRow = rows.length < products.length;
 
     if (!isOpen) return null;
 
     const resetForm = () => {
-        setSelectedProductId('');
-        setBatchQuantity('1');
+        setRows([newRow()]);
         setApiError(null);
     };
 
@@ -123,22 +135,34 @@ export default function ProduceBatchModal({
         onClose();
     };
 
+    const handleAddRow = () => setRows((prev) => [...prev, newRow()]);
+
+    const handleRemoveRow = (rowId: string) =>
+        setRows((prev) => (prev.length === 1 ? prev : prev.filter((r) => r.rowId !== rowId)));
+
+    const handleRowChange = (rowId: string, field: 'productId' | 'quantity', value: string) =>
+        setRows((prev) => prev.map((r) => (r.rowId === rowId ? { ...r, [field]: value } : r)));
+
+    // A product can be chosen only once per batch: disable it in the other rows' dropdowns
+    const isTakenByOtherRow = (rowId: string, productId: number) =>
+        rows.some((r) => r.rowId !== rowId && r.productId === String(productId));
+
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
-        if (!isFormValid || !selectedProduct || isSubmitting) return;
+        if (!isFormValid || isSubmitting) return;
 
         setIsSubmitting(true);
         setApiError(null);
 
-        // Matches the C# ProductStock { Product, Quantity }. The server sets the user from the token.
-        const payload = {
-            product: selectedProduct,
-            quantity: qtyNumber,
-        };
+        // Matches the C# List<ProductStock> { Product, Quantity }. The server sets the user from the token.
+        const payload = rowInfos.map((r) => ({
+            product: r.product,
+            quantity: Number(r.row.quantity),
+        }));
 
         try {
-            // Replace with your actual endpoint
-            const response = await apiFetch('/api/product/batch', {
+            // Replace with your AddBatch route
+            const response = await apiFetch('/api/productstock/add', {
                 method: 'POST',
                 body: JSON.stringify(payload),
             });
@@ -150,11 +174,8 @@ export default function ProduceBatchModal({
                 throw new Error(`Production failed (${response.status})`);
             }
 
-            const saved: ProductStock = await response.json();
-            const consumed = requirements.map((r) => ({ unitId: r.unitId, consumed: r.required }));
-
             resetForm();
-            onSuccess(saved, consumed);
+            onSuccess();
             onClose();
         } catch (err: any) {
             setApiError(err.message || 'Error recording batch production.');
@@ -163,139 +184,143 @@ export default function ProduceBatchModal({
         }
     };
 
-    const quantityHasProblem = hasInsufficientMaterials || exceedsStockLimit;
-
     return (
         <div style={overlayStyle}>
             <div style={modalStyle}>
-                <h3 style={{ margin: '0 0 16px 0', color: '#2dd4bf' }}>Produce Batch</h3>
+                <h3 style={{ margin: '0 0 16px 0', color: '#2dd4bf', textAlign: 'center' }}>Produce Batch</h3>
 
                 <form onSubmit={handleSubmit}>
-                    {/* Product */}
-                    <div style={{ marginBottom: '14px' }}>
-                        <label style={labelStyle}>Select Product</label>
-                        <select
-                            value={selectedProductId}
-                            onChange={(e) => setSelectedProductId(e.target.value)}
-                            style={inputStyle}
-                        >
-                            <option value="">-- Choose Product --</option>
-                            {products.map((p) => {
-                                const inStock = stockByProductId.get(p.id) || 0;
-                                return (
-                                    <option key={p.id} value={p.id} disabled={inStock >= maxStock}>
-                                        {p.name} (In stock: {inStock} / {maxStock})
-                                    </option>
-                                );
-                            })}
-                        </select>
+                    {/* Scrollable list: header stays on top, rows scroll under it */}
+                    <div style={scrollAreaStyle}>
+                        <div style={rowStyle(true)}>
+                            <span style={{ ...headerLabelStyle, flex: 3 }}>Select Product</span>
+                            <span style={{ ...headerLabelStyle, flex: 1 }}>Quantity</span>
+                            <span style={{ width: '36px', flexShrink: 0 }} />
+                        </div>
+
+                        {rowInfos.map((info) => {
+                            const errorText = info.invalidRecipe
+                                ? 'This product has materials without a quantity defined'
+                                : info.exceedsLimit
+                                ? `Exceeds max stock limit (in stock: ${info.existing}, max: ${maxStock})`
+                                : info.lacksMaterials
+                                ? 'Not enough materials'
+                                : info.row.quantity !== '' && !info.qtyValid
+                                ? 'Enter a whole number above 0'
+                                : null;
+
+                            return (
+                                <div key={info.row.rowId} style={{ marginBottom: '8px' }}>
+                                    <div style={rowStyle(false)}>
+                                        <select
+                                            value={info.row.productId}
+                                            onChange={(e) =>
+                                                handleRowChange(info.row.rowId, 'productId', e.target.value)
+                                            }
+                                            style={{ ...inputStyle, flex: 3 }}
+                                        >
+                                            <option value="">-- Choose Product --</option>
+                                            {products.map((p) => {
+                                                const inStock = stockByProductId.get(p.id) || 0;
+                                                return (
+                                                    <option
+                                                        key={p.id}
+                                                        value={p.id}
+                                                        disabled={
+                                                            inStock >= maxStock ||
+                                                            isTakenByOtherRow(info.row.rowId, p.id)
+                                                        }
+                                                    >
+                                                        {p.name} (In stock: {inStock} / {maxStock})
+                                                    </option>
+                                                );
+                                            })}
+                                        </select>
+
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            step="1"
+                                            value={info.row.quantity}
+                                            onChange={(e) =>
+                                                handleRowChange(info.row.rowId, 'quantity', e.target.value)
+                                            }
+                                            style={{
+                                                ...inputStyle,
+                                                flex: 1,
+                                                borderColor:
+                                                    info.exceedsLimit || info.lacksMaterials
+                                                        ? '#f87171'
+                                                        : 'rgba(20, 184, 166, 0.4)',
+                                            }}
+                                        />
+
+                                        <button
+                                            type="button"
+                                            onClick={() => handleRemoveRow(info.row.rowId)}
+                                            style={{
+                                                ...removeBtnStyle,
+                                                visibility: rows.length > 1 ? 'visible' : 'hidden',
+                                            }}
+                                            title="Remove product"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+
+                                    {errorText && (
+                                        <div style={{ color: '#f87171', fontSize: '12px', marginTop: '4px', paddingLeft: '4px' }}>
+                                            {errorText}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
 
-                    {/* Batch quantity */}
-                    <div style={{ marginBottom: '16px' }}>
-                        <label style={labelStyle}>Batch Quantity to Produce</label>
-                        <input
-                            type="number"
-                            min="1"
-                            step="1"
-                            value={batchQuantity}
-                            onChange={(e) => setBatchQuantity(e.target.value)}
-                            style={{
-                                ...inputStyle,
-                                borderColor: quantityHasProblem ? '#f87171' : 'rgba(20, 184, 166, 0.4)',
-                            }}
-                        />
-                        {selectedProduct && !hasInvalidRecipe && (
-                            <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>
-                                You can produce up to{' '}
-                                <strong style={{ color: '#2dd4bf' }}>{maxProducible}</strong> right now
-                            </div>
-                        )}
-                    </div>
+                    <button
+                        type="button"
+                        onClick={handleAddRow}
+                        disabled={!canAddRow}
+                        style={{
+                            ...addBtnStyle,
+                            opacity: canAddRow ? 1 : 0.5,
+                            cursor: canAddRow ? 'pointer' : 'not-allowed',
+                        }}
+                    >
+                        + Add Product
+                    </button>
 
-                    {/* Live breakdown */}
-                    {selectedProduct && (
-                        <div
-                            style={{
-                                background: '#1e293b',
-                                border: '1px solid rgba(20, 184, 166, 0.25)',
-                                borderRadius: '6px',
-                                padding: '12px',
-                                marginBottom: '14px',
-                            }}
-                        >
+                    {/* Total materials needed by the whole batch */}
+                    {materialTotals.length > 0 && (
+                        <div style={summaryStyle}>
                             <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '8px' }}>
-                                Stock limit:
+                                Materials needed for this batch:
                             </div>
-                            <div
-                                style={{
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    fontSize: '13px',
-                                    padding: '4px 0 8px',
-                                    borderBottom: '1px solid rgba(148, 163, 184, 0.1)',
-                                    color: exceedsStockLimit ? '#f87171' : '#e2e8f0',
-                                }}
-                            >
-                                <span>{selectedProduct.name}</span>
-                                <span>
-                                    <strong>{existingQty + qtyNumber}</strong> / Max: <strong>{maxStock}</strong>
-                                </span>
-                            </div>
-                            {exceedsStockLimit && (
-                                <div style={{ color: '#f87171', fontWeight: 'bold', fontSize: '13px', marginTop: '6px' }}>
-                                    Exceeds max stock limit
-                                </div>
-                            )}
-
-                            <div style={{ fontSize: '12px', color: '#94a3b8', margin: '12px 0 8px' }}>
-                                Material Requirements:
-                            </div>
-
-                            {requirements.length === 0 && (
-                                <div style={{ fontSize: '13px', color: '#94a3b8' }}>
-                                    This product has no materials defined.
-                                </div>
-                            )}
-
-                            {requirements.map((req) => (
+                            {materialTotals.map((m) => (
                                 <div
-                                    key={req.unitId}
+                                    key={m.unitId}
                                     style={{
                                         display: 'flex',
                                         justifyContent: 'space-between',
                                         fontSize: '13px',
                                         padding: '4px 0',
                                         borderBottom: '1px solid rgba(148, 163, 184, 0.1)',
-                                        color: req.isInsufficient ? '#f87171' : '#e2e8f0',
+                                        color: m.isInsufficient ? '#f87171' : '#e2e8f0',
                                     }}
                                 >
-                                    <span>{req.name} ({req.perUnit} {req.measurement} each)</span>
+                                    <span>{m.name}</span>
                                     <span>
-                                        Need: <strong>{req.required}</strong> / Avail:{' '}
-                                        <strong>{req.available}</strong> {req.measurement}
+                                        Need: <strong>{m.required}</strong> / Avail:{' '}
+                                        <strong>{m.available}</strong> {m.measurement}
                                     </span>
                                 </div>
                             ))}
-
-                            {hasInvalidRecipe && (
-                                <div style={{ color: '#f87171', fontWeight: 'bold', fontSize: '13px', marginTop: '10px' }}>
-                                    Some materials of this product have no quantity defined
-                                </div>
-                            )}
-
-                            {hasInsufficientMaterials && (
-                                <div style={{ color: '#f87171', fontWeight: 'bold', fontSize: '13px', marginTop: '10px' }}>
-                                    Not enough materials
-                                </div>
-                            )}
                         </div>
                     )}
 
                     {apiError && (
-                        <div style={{ color: '#f87171', fontSize: '13px', marginBottom: '12px' }}>
-                            {apiError}
-                        </div>
+                        <div style={{ color: '#f87171', fontSize: '13px', marginTop: '12px' }}>{apiError}</div>
                     )}
 
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
@@ -336,21 +361,53 @@ const modalStyle: CSSProperties = {
     border: '1px solid rgba(20, 184, 166, 0.5)',
     borderRadius: '8px',
     padding: '24px',
-    width: '440px',
+    width: '560px',
     maxWidth: '95vw',
+    maxHeight: '90vh',
+    overflowY: 'auto',
     color: '#f8fafc',
     boxShadow: '0 10px 25px rgba(0,0,0,0.6)',
 };
 
-const labelStyle: CSSProperties = {
-    display: 'block',
+// The list of rows scrolls when there are many; the header row is sticky inside it
+const scrollAreaStyle: CSSProperties = {
+    maxHeight: '240px',
+    overflowY: 'auto',
+    scrollbarGutter: 'stable',
+};
+
+const rowStyle = (isHeader: boolean): CSSProperties => ({
+    display: 'flex',
+    gap: '8px',
+    alignItems: 'center',
+    ...(isHeader && {
+        position: 'sticky',
+        top: 0,
+        background: '#0f172a',
+        zIndex: 1,
+        paddingBottom: '6px',
+    }),
+});
+
+const headerLabelStyle: CSSProperties = {
     fontSize: '13px',
     color: '#94a3b8',
-    marginBottom: '6px',
+    textAlign: 'center',
+};
+
+const summaryStyle: CSSProperties = {
+    background: '#1e293b',
+    border: '1px solid rgba(20, 184, 166, 0.25)',
+    borderRadius: '6px',
+    padding: '12px',
+    marginTop: '14px',
+    maxHeight: '140px',
+    overflowY: 'auto',
 };
 
 const inputStyle: CSSProperties = {
     width: '100%',
+    minWidth: 0,
     padding: '8px 10px',
     background: '#1e293b',
     border: '1px solid rgba(20, 184, 166, 0.4)',
@@ -359,6 +416,28 @@ const inputStyle: CSSProperties = {
     fontFamily: 'monospace',
     fontSize: '14px',
     boxSizing: 'border-box',
+};
+
+const addBtnStyle: CSSProperties = {
+    background: 'rgba(20, 184, 166, 0.1)',
+    color: '#2dd4bf',
+    border: '1px dashed rgba(20, 184, 166, 0.6)',
+    borderRadius: '4px',
+    padding: '6px 12px',
+    fontFamily: 'monospace',
+    fontSize: '13px',
+    marginTop: '8px',
+};
+
+const removeBtnStyle: CSSProperties = {
+    width: '36px',
+    flexShrink: 0,
+    background: 'rgba(248, 113, 113, 0.15)',
+    color: '#f87171',
+    border: '1px solid rgba(248, 113, 113, 0.4)',
+    borderRadius: '4px',
+    padding: '8px 0',
+    cursor: 'pointer',
 };
 
 const cancelBtnStyle: CSSProperties = {
