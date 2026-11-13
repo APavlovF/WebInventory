@@ -1,6 +1,7 @@
 // src/features/shared/modalStyles.ts
 // One set of styles for all four modals, so they always look the same.
 import type { CSSProperties } from 'react';
+import './modalForm.css';
 
 export const overlayStyle: CSSProperties = {
     position: 'fixed',

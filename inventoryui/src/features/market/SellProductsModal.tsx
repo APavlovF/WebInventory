@@ -5,6 +5,7 @@ import { apiFetch } from '../../api';
 import Combobox from '../shared/Combobox';
 import { overlayStyle, modalStyle, scrollAreaStyle, rowStyle, headerLabelStyle, inputStyle, addBtnStyle, removeBtnStyle, cancelBtnStyle, submitBtnStyle } from '../shared/ModalStyles';
 import type { Product, ProductStock } from '../../types/inventory';
+import '../shared/modalForm.css';
 
 interface SellProductsModalProps {
     isOpen: boolean;
@@ -127,7 +128,7 @@ export default function SellProductsModal({
 
     return (
         <div style={overlayStyle}>
-            <div style={modalStyle}>
+            <div className="modal-form" style={modalStyle}>
                 <h3 style={{ margin: '0 0 16px 0', color: '#2dd4bf', textAlign: 'center' }}>Sell Products</h3>
 
                 <form onSubmit={handleSubmit}>

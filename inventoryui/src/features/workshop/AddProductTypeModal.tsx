@@ -5,7 +5,7 @@ import { apiFetch } from '../../api';
 import Combobox from '../shared/Combobox';
 import { overlayStyle, modalStyle, scrollAreaStyle, labelStyle, inputStyle, addBtnStyle, removeBtnStyle, cancelBtnStyle, submitBtnStyle } from '../shared/ModalStyles';
 import type { Product, Unit } from '../../types/inventory';
-
+import '../shared/modalForm.css';
 interface AddProductTypeModalProps {
     isOpen: boolean;
     materials: Unit[]; // Cached units ("materials") from DB
@@ -110,7 +110,7 @@ export default function AddProductTypeModal({
 
     return (
         <div style={overlayStyle}>
-            <div style={modalStyle}>
+            <div className="modal-form" style={modalStyle}>
                 <h3 style={{ margin: '0 0 16px 0', color: '#2dd4bf' }}>Add Product Type</h3>
 
                 <form onSubmit={handleSubmit}>

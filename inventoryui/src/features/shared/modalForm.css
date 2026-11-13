@@ -1,0 +1,8 @@
+/* src/features/shared/modalForm.css
+   Focus look for every field and button inside the forms (inline styles can't do :focus). */
+.modal-form input:focus,
+.modal-form button:focus-visible {
+    outline: none !important;
+    border-color: #2dd4bf; /* highlights the existing border in teal */
+    box-shadow: 0 0 6px 1px rgba(45, 212, 191, 0.4); /* soft diffused glow */
+}
