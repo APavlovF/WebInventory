@@ -1,5 +1,5 @@
 // src/features/warehouse/MaterialLimitsModal.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { SyntheticEvent } from 'react';
 import { apiFetch } from '../../api';
 import {
@@ -15,30 +15,47 @@ import {
 import {
     NO_MAX_LIMIT,
     hasMaxStockLimit,
-    type Unit,
     type UnitStock,
-    type StockLimitUpdate,
 } from '../../types/inventory';
 import '../shared/modalForm.css';
 
 interface MaterialLimitsModalProps {
     isOpen: boolean;
-    units: Unit[];
-    existingStocks?: UnitStock[];
+    isAuthenticated: boolean;
+    unitStocks: UnitStock[];
     onClose: () => void;
     onSuccess: () => void;
 }
 
 interface LimitRow {
-    unit: Unit;
+    stock: UnitStock;
     lowStockAlert: string;
     maxStockAlert: string;
+    initialLow: number;
+    initialMax: number;
 }
+
+const DEMO_STOCKS: UnitStock[] = [
+    {
+        id: -1,
+        lowStockAlert: 10,
+        maxStockAlert: 100,
+        quantity: 45,
+        unit: { id: -1, name: 'Steel Sheets', measurement: 'kg', sku: 'DEMO-STL' },
+    },
+    {
+        id: -2,
+        lowStockAlert: 5,
+        maxStockAlert: NO_MAX_LIMIT,
+        quantity: 20,
+        unit: { id: -2, name: 'Oak Planks', measurement: 'pcs', sku: 'DEMO-OAK' },
+    },
+];
 
 export default function MaterialLimitsModal({
     isOpen,
-    units,
-    existingStocks = [],
+    isAuthenticated,
+    unitStocks,
     onClose,
     onSuccess,
 }: MaterialLimitsModalProps) {
@@ -46,40 +63,52 @@ export default function MaterialLimitsModal({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [apiError, setApiError] = useState<string | null>(null);
 
+    const activeStocks = useMemo(() => {
+        if (!isAuthenticated) {
+            return DEMO_STOCKS;
+        }
+        return Array.isArray(unitStocks) ? unitStocks : [];
+    }, [isAuthenticated, unitStocks]);
+
     useEffect(() => {
         if (!isOpen) return;
 
-        const stockByUnitId = new Map<number, UnitStock>();
-        existingStocks.forEach((stock) => stockByUnitId.set(stock.unit.id, stock));
-
         setRows(
-            units.map((unit) => {
-                const existing = stockByUnitId.get(unit.id);
+            activeStocks.map((stock) => {
+                const rawLow = stock.lowStockAlert ?? 0;
+                const rawMax = stock.maxStockAlert ?? NO_MAX_LIMIT;
+                const normalizedMax = hasMaxStockLimit(rawMax) ? rawMax : NO_MAX_LIMIT;
+
                 return {
-                    unit,
-                    lowStockAlert: existing ? String(existing.lowStockAlert) : '0',
-                    maxStockAlert:
-                        existing && hasMaxStockLimit(existing.maxStockAlert)
-                            ? String(existing.maxStockAlert)
-                            : '',
+                    stock,
+                    lowStockAlert: String(rawLow),
+                    maxStockAlert: normalizedMax < NO_MAX_LIMIT ? String(normalizedMax) : '',
+                    initialLow: rawLow,
+                    initialMax: normalizedMax,
                 };
             })
         );
 
         setApiError(null);
-    }, [isOpen, units, existingStocks]);
+    }, [isOpen, activeStocks]);
 
     const rowInfos = rows.map((row) => {
-        const minVal = row.lowStockAlert.trim() === '' ? NaN : Number(row.lowStockAlert);
+        const minVal =
+            row.lowStockAlert.trim() === '' ? NaN : Number(row.lowStockAlert);
         const minValid = Number.isFinite(minVal) && minVal >= 0;
 
         const hasMax = row.maxStockAlert.trim() !== '';
         const maxVal = hasMax ? Number(row.maxStockAlert) : NO_MAX_LIMIT;
         const maxValid =
             !hasMax ||
-            (Number.isFinite(maxVal) && maxVal > 0 && maxVal <= NO_MAX_LIMIT);
+            (Number.isInteger(maxVal) && maxVal > 0 && maxVal <= NO_MAX_LIMIT);
 
         const maxBelowMin = minValid && maxValid && hasMax && maxVal < minVal;
+
+        const isChanged =
+            minValid &&
+            maxValid &&
+            (minVal !== row.initialLow || maxVal !== row.initialMax);
 
         return {
             row,
@@ -88,12 +117,17 @@ export default function MaterialLimitsModal({
             minValid,
             maxValid,
             maxBelowMin,
+            isChanged,
         };
     });
+
+    const hasChanges = rowInfos.some((r) => r.isChanged);
 
     const isFormValid =
         rows.length > 0 &&
         rowInfos.every((r) => r.minValid && r.maxValid && !r.maxBelowMin);
+
+    const canSave = isAuthenticated && isFormValid && hasChanges && !isSubmitting;
 
     if (!isOpen) {
         return null;
@@ -106,32 +140,32 @@ export default function MaterialLimitsModal({
     };
 
     const handleFieldChange = (
-        unitId: number,
+        stockId: number,
         field: 'lowStockAlert' | 'maxStockAlert',
         value: string
     ) => {
         setRows((prev) =>
             prev.map((row) =>
-                row.unit.id === unitId ? { ...row, [field]: value } : row
+                row.stock.id === stockId ? { ...row, [field]: value } : row
             )
         );
     };
 
     const handleSubmit = async (e: SyntheticEvent) => {
         e.preventDefault();
-        if (!isFormValid || isSubmitting) return;
+        if (!canSave) return;
 
         setIsSubmitting(true);
         setApiError(null);
 
-        const payload: StockLimitUpdate[] = rowInfos.map((info) => ({
-            unitId: info.row.unit.id,
+        const payload: UnitStock[] = rowInfos.map((info) => ({
+            ...info.row.stock,
             lowStockAlert: info.minVal,
             maxStockAlert: info.maxVal,
         }));
 
         try {
-            const response = await apiFetch('/api/warehouse/material-limits', {
+            const response = await apiFetch('/api/materials/limit', {
                 method: 'POST',
                 body: JSON.stringify(payload),
             });
@@ -146,18 +180,20 @@ export default function MaterialLimitsModal({
 
             onSuccess();
             onClose();
-        } catch (err: unknown) {
-            const message =
-                err instanceof Error ? err.message : 'Error saving stock limits.';
-            setApiError(message);
+        } catch (err: any) {
+            setApiError(err?.message || 'Error saving stock limits.');
         } finally {
             setIsSubmitting(false);
         }
     };
 
     return (
-        <div style={overlayStyle}>
-            <div className="modal-form" style={modalStyle}>
+        <div style={overlayStyle} onClick={handleClose}>
+            <div
+                className="modal-form"
+                style={modalStyle}
+                onClick={(e) => e.stopPropagation()}
+            >
                 <h3
                     style={{
                         margin: '0 0 16px 0',
@@ -168,7 +204,24 @@ export default function MaterialLimitsModal({
                     Warehouse Stock Limits
                 </h3>
 
-                {units.length === 0 ? (
+                {!isAuthenticated && (
+                    <div
+                        style={{
+                            backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                            border: '1px solid rgba(245, 158, 11, 0.4)',
+                            color: '#fbbf24',
+                            fontSize: '12px',
+                            padding: '8px 12px',
+                            borderRadius: '6px',
+                            marginBottom: '12px',
+                            textAlign: 'center',
+                        }}
+                    >
+                        Demo Mode: Preview only. Sign in to save stock limits.
+                    </div>
+                )}
+
+                {activeStocks.length === 0 ? (
                     <div
                         style={{
                             color: '#94a3b8',
@@ -177,7 +230,7 @@ export default function MaterialLimitsModal({
                         }}
                     >
                         <p style={{ margin: '0 0 20px 0' }}>
-                            No materials found. Store materials first to configure stock alerts.
+                            No materials found. Buy materials first to configure stock alerts.
                         </p>
                         <div style={{ display: 'flex', justifyContent: 'center' }}>
                             <button
@@ -208,14 +261,14 @@ export default function MaterialLimitsModal({
                                 const errorText = !info.minValid
                                     ? 'Min stock must be 0 or greater'
                                     : !info.maxValid
-                                        ? `Max stock must be between 1 and ${NO_MAX_LIMIT}`
+                                        ? `Max stock must be a whole number between 1 and ${NO_MAX_LIMIT}`
                                         : info.maxBelowMin
                                             ? 'Max stock cannot be less than Min stock'
                                             : null;
 
                                 return (
                                     <div
-                                        key={info.row.unit.id}
+                                        key={info.row.stock.id}
                                         style={{ marginBottom: '8px' }}
                                     >
                                         <div style={rowStyle(false)}>
@@ -230,26 +283,26 @@ export default function MaterialLimitsModal({
                                                     cursor: 'default',
                                                 }}
                                             >
-                                                <span>{info.row.unit.name}</span>
+                                                <span>{info.row.stock.unit.name}</span>
                                                 <span
                                                     style={{
                                                         color: '#94a3b8',
                                                         fontSize: '12px',
                                                     }}
                                                 >
-                                                    {info.row.unit.measurement}
+                                                    {info.row.stock.unit.measurement}
                                                 </span>
                                             </div>
 
                                             <input
                                                 type="number"
                                                 min="0"
-                                                step="1"
+                                                step="any"
                                                 placeholder="0"
                                                 value={info.row.lowStockAlert}
                                                 onChange={(e) =>
                                                     handleFieldChange(
-                                                        info.row.unit.id,
+                                                        info.row.stock.id,
                                                         'lowStockAlert',
                                                         e.target.value
                                                     )
@@ -272,7 +325,7 @@ export default function MaterialLimitsModal({
                                                 value={info.row.maxStockAlert}
                                                 onChange={(e) =>
                                                     handleFieldChange(
-                                                        info.row.unit.id,
+                                                        info.row.stock.id,
                                                         'maxStockAlert',
                                                         e.target.value
                                                     )
@@ -336,14 +389,11 @@ export default function MaterialLimitsModal({
 
                             <button
                                 type="submit"
-                                disabled={!isFormValid || isSubmitting}
+                                disabled={!canSave}
                                 style={{
                                     ...submitBtnStyle,
-                                    opacity: !isFormValid || isSubmitting ? 0.5 : 1,
-                                    cursor:
-                                        !isFormValid || isSubmitting
-                                            ? 'not-allowed'
-                                            : 'pointer',
+                                    opacity: canSave ? 1 : 0.5,
+                                    cursor: canSave ? 'pointer' : 'not-allowed',
                                 }}
                             >
                                 {isSubmitting ? 'Saving...' : 'Save Limits'}

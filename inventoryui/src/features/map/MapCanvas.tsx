@@ -339,9 +339,9 @@ export default function MapCanvas({ onBuildingClick, isLoggedIn }: MapCanvasProp
 
             {/* Warehouse forms */}
             <MaterialLimitsModal
-                isOpen={activeModal === 'materialLimits'}
-                units={units}
-                existingStocks={unitStocks}
+                isOpen={activeModal === 'materialLimits'}                
+                isAuthenticated={isLoggedIn}
+                unitStocks={unitStocks}
                 onClose={() => setActiveModal(null)}
                 onSuccess={() => refresh()}
             />

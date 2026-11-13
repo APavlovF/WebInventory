@@ -29,8 +29,7 @@ export default function BuildingNode({
     onSellProducts,
     onNewProduct,
     onCreateProducts,
-    onSetupStockLimits,
-    warehouseStatus = 'ok',
+    onSetupStockLimits,    
 }: BuildingNodeProps) {
     const [isHovered, setIsHovered] = useState(false);
     const [imgFailed, setImgFailed] = useState(false);

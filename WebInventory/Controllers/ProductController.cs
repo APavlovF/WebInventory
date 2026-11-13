@@ -103,6 +103,8 @@ public class ProductController(EfDbContext context) : ControllerBase
             .Select(p => new
             {
                 p.Id,
+                p.LowStockAlert,
+                p.MaxStockAlert,
                 p.Quantity,
                 Product = new { p.Product!.Id, p.Product.Name, p.Product.Sku }
             })
