@@ -14,6 +14,7 @@ interface BuildingNodeProps {
     onSellProducts?: () => void;
     onNewProduct?: () => void;
     onCreateProducts?: () => void;
+    onSetupStockLimits?: () => void;
     // Optional status for the Warehouse building
     warehouseStatus?: WarehouseStatus;
 }
@@ -28,6 +29,7 @@ export default function BuildingNode({
     onSellProducts,
     onNewProduct,
     onCreateProducts,
+    onSetupStockLimits,
     warehouseStatus = 'ok',
 }: BuildingNodeProps) {
     const [isHovered, setIsHovered] = useState(false);
@@ -208,28 +210,46 @@ export default function BuildingNode({
                 {name}
             </span>
 
-            {/* WAREHOUSE: Rectangular status box BELOW the building/label */}
-            {normalizedName === 'warehouse' && (
+            {/* WAREHOUSE: Action button inside a frame, matching Workshop & Market */}
+            {normalizedName === 'warehouse' && onSetupStockLimits && (
                 <div
                     style={{
                         marginTop: '8px',
-                        padding: '5px 12px',
-                        background: '#0f172a',
-                        color: getStatusColor(warehouseStatus),
-                        fontFamily: 'monospace',
-                        fontSize: '13px',
-                        fontWeight: 'bold',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px',
+                        padding: '16px 14px',
+                        background: 'rgba(15, 23, 42, 0.9)',
+                        border: '1px solid rgba(45, 212, 191, 0.35)',
                         borderRadius: '6px',
-                        border: `1px solid ${getStatusColor(warehouseStatus)}`,
-                        boxShadow: '0 4px 6px rgba(0,0,0,0.4)',
-                        whiteSpace: 'nowrap',
+                        boxShadow: '0 4px 10px rgba(0, 0, 0, 0.5)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '6px',
                     }}
                 >
-                    Status: {warehouseStatus}
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onSetupStockLimits();
+                        }}
+                        style={{
+                            padding: '5px 10px',
+                            background: 'rgba(20, 184, 166, 0.1)',
+                            color: '#2dd4bf',
+                            fontFamily: 'monospace',
+                            fontSize: '11px',
+                            fontWeight: 'bold',
+                            letterSpacing: '0.3px',
+                            borderRadius: '4px',
+                            border: '1px solid rgba(45, 212, 191, 0.4)',
+                            whiteSpace: 'nowrap',
+                            cursor: 'pointer',
+                        }}
+                    >
+                        Setup stock limits
+                    </button>
                 </div>
             )}
+
         </div>
     );
 }

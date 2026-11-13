@@ -109,6 +109,12 @@ namespace WebInventory.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("LowStockAlert")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MaxStockAlert")
+                        .HasColumnType("integer");
+
                     b.Property<int?>("ProductId")
                         .HasColumnType("integer");
 
@@ -154,6 +160,12 @@ namespace WebInventory.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("LowStockAlert")
+                        .HasColumnType("numeric");
+
+                    b.Property<int>("MaxStockAlert")
+                        .HasColumnType("integer");
 
                     b.Property<decimal>("Quantity")
                         .HasPrecision(18, 4)
