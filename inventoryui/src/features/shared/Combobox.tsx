@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { inputStyle } from './modalStyles';
+import { inputStyle } from './ModalStyles';
 
 export interface ComboOption {
     value: string;   // what is stored when picked

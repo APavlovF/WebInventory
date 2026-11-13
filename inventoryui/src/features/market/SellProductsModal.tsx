@@ -3,7 +3,7 @@ import { useState, useMemo } from 'react';
 import type { SyntheticEvent } from 'react';
 import { apiFetch } from '../../api';
 import Combobox from '../shared/Combobox';
-import { overlayStyle, modalStyle, scrollAreaStyle, rowStyle, headerLabelStyle, inputStyle, addBtnStyle, removeBtnStyle, cancelBtnStyle, submitBtnStyle } from '../shared/modalStyles';
+import { overlayStyle, modalStyle, scrollAreaStyle, rowStyle, headerLabelStyle, inputStyle, addBtnStyle, removeBtnStyle, cancelBtnStyle, submitBtnStyle } from '../shared/ModalStyles';
 import type { Product, ProductStock } from '../../types/inventory';
 
 interface SellProductsModalProps {

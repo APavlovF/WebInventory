@@ -3,7 +3,7 @@ import { useState } from 'react';
 import type { SyntheticEvent } from 'react';
 import { apiFetch } from '../../api';
 import Combobox from '../shared/Combobox';
-import { overlayStyle, modalStyle, scrollAreaStyle, labelStyle, inputStyle, addBtnStyle, removeBtnStyle, cancelBtnStyle, submitBtnStyle } from '../shared/modalStyles';
+import { overlayStyle, modalStyle, scrollAreaStyle, labelStyle, inputStyle, addBtnStyle, removeBtnStyle, cancelBtnStyle, submitBtnStyle } from '../shared/ModalStyles';
 import type { Product, Unit } from '../../types/inventory';
 
 interface AddProductTypeModalProps {
