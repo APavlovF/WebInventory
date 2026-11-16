@@ -20,10 +20,11 @@ interface BuyRow {
     rowId: string;
     name: string;        // typed or picked from the combobox
     quantity: string;
+    price: string;       // price per unit
     measurement: string; // only used when the material is new
 }
 
-const newRow = (): BuyRow => ({ rowId: crypto.randomUUID(), name: '', quantity: '1', measurement: '' });
+const newRow = (): BuyRow => ({ rowId: crypto.randomUUID(), name: '', quantity: '1', price: '0', measurement: '' });
 
 const normalize = (s: string) => s.trim().toLowerCase();
 
@@ -53,13 +54,15 @@ export default function BuyMaterialsModal({
         return map;
     }, [units]);
 
-    // Current stock per unit id
-    const stockByUnitId = useMemo(() => {
-        const map = new Map<number, number>();
+    // Current stock and last known price per unit id
+    const { stockByUnitId, priceByUnitId } = useMemo(() => {
+        const stockMap = new Map<number, number>();
+        const priceMap = new Map<number, number>();
         materialStocks.forEach((us) => {
-            map.set(us.unit.id, (map.get(us.unit.id) || 0) + us.quantity);
+            stockMap.set(us.unit.id, (stockMap.get(us.unit.id) || 0) + us.quantity);
+            priceMap.set(us.unit.id, us.price);
         });
-        return map;
+        return { stockByUnitId: stockMap, priceByUnitId: priceMap };
     }, [materialStocks]);
 
     const rowInfos = rows.map((row) => {
@@ -67,7 +70,10 @@ export default function BuyMaterialsModal({
         const unit = unitByName.get(key);
         const isNew = key !== '' && !unit;
         const qty = Number(row.quantity);
-        const qtyValid = Number.isFinite(qty) && qty > 0;
+        const qtyValid = row.quantity.trim() !== '' && Number.isFinite(qty) && qty > 0;
+        const price = Number(row.price);
+        const priceValid = row.price.trim() !== '' && Number.isFinite(price) && price >= 0;
+        const subtotal = qtyValid && priceValid ? round(qty * price) : 0;
         const existing = unit ? round(stockByUnitId.get(unit.id) || 0) : 0;
         const measurement = unit ? unit.measurement : row.measurement.trim();
 
@@ -77,6 +83,8 @@ export default function BuyMaterialsModal({
             unit,
             isNew,
             qtyValid,
+            priceValid,
+            subtotal,
             existing,
             measurement,
             duplicate: key !== '' && rows.some((r) => r.rowId !== row.rowId && normalize(r.name) === key),
@@ -85,12 +93,15 @@ export default function BuyMaterialsModal({
         };
     });
 
+    const totalCost = round(rowInfos.reduce((sum, r) => sum + r.subtotal, 0));
+
     const isFormValid =
         rows.length > 0 &&
         rowInfos.every(
             (r) =>
                 r.key !== '' &&
                 r.qtyValid &&
+                r.priceValid &&
                 !r.duplicate &&
                 !r.exceedsLimit &&
                 !r.missingMeasurement
@@ -114,8 +125,25 @@ export default function BuyMaterialsModal({
     const handleRemoveRow = (rowId: string) =>
         setRows((prev) => (prev.length === 1 ? prev : prev.filter((r) => r.rowId !== rowId)));
 
-    const handleRowChange = (rowId: string, field: 'name' | 'quantity' | 'measurement', value: string) =>
-        setRows((prev) => prev.map((r) => (r.rowId === rowId ? { ...r, [field]: value } : r)));
+    const handleRowChange = (rowId: string, field: 'name' | 'quantity' | 'price' | 'measurement', value: string) =>
+        setRows((prev) =>
+            prev.map((r) => {
+                if (r.rowId !== rowId) return r;
+
+                if (field === 'name') {
+                    const matchedUnit = unitByName.get(normalize(value));
+                    const existingPrice = matchedUnit ? priceByUnitId.get(matchedUnit.id) : undefined;
+
+                    return {
+                        ...r,
+                        name: value,
+                        ...(existingPrice !== undefined ? { price: String(existingPrice) } : {}),
+                    };
+                }
+
+                return { ...r, [field]: value };
+            })
+        );
 
     const handleSubmit = async (e: SyntheticEvent) => {
         e.preventDefault();
@@ -124,7 +152,7 @@ export default function BuyMaterialsModal({
         setIsSubmitting(true);
         setApiError(null);
 
-        // Matches the C# List<UnitStock> { Unit, Quantity }. The server sets the user from the token.
+        // Matches the C# List<UnitStock> { Unit, Quantity, Price }. The server sets the user from the token.
         // An existing material is sent as it is (with its id); a new one has no id.
         const payload = rowInfos.map((r) => ({
             unit:
@@ -134,6 +162,7 @@ export default function BuyMaterialsModal({
                     sku: makeSku(r.row.name),
                 },
             quantity: Number(r.row.quantity),
+            price: Number(r.row.price),
         }));
 
         try {
@@ -171,6 +200,8 @@ export default function BuyMaterialsModal({
                             <span style={{ ...headerLabelStyle, flex: 3 }}>Material (pick or type new)</span>
                             <span style={{ ...headerLabelStyle, flex: 1 }}>Quantity</span>
                             <span style={{ ...headerLabelStyle, flex: 1 }}>Unit</span>
+                            <span style={{ ...headerLabelStyle, flex: 1 }}>Price / Unit</span>
+                            <span style={{ ...headerLabelStyle, flex: 1 }}>Total</span>
                             <span style={{ width: '36px', flexShrink: 0 }} />
                         </div>
 
@@ -180,7 +211,9 @@ export default function BuyMaterialsModal({
                                 : info.exceedsLimit
                                 ? `Exceeds max stock limit (in stock: ${info.existing}, max: ${maxStock})`
                                 : info.row.quantity !== '' && !info.qtyValid
-                                ? 'Enter a number above 0'
+                                ? 'Enter a quantity above 0'
+                                : info.row.price !== '' && !info.priceValid
+                                ? 'Enter a valid price (0 or higher)'
                                 : info.missingMeasurement
                                 ? 'New material: enter its unit of measurement (kg, pcs, ...)'
                                 : null;
@@ -222,6 +255,32 @@ export default function BuyMaterialsModal({
                                             style={{ ...inputStyle, flex: 1, opacity: info.unit ? 0.6 : 1 }}
                                         />
 
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="any"
+                                            placeholder="0.00"
+                                            value={info.row.price}
+                                            onChange={(e) => handleRowChange(info.row.rowId, 'price', e.target.value)}
+                                            style={{
+                                                ...inputStyle,
+                                                flex: 1,
+                                                borderColor: info.row.price !== '' && !info.priceValid ? '#f87171' : 'rgba(20, 184, 166, 0.4)',
+                                            }}
+                                        />
+
+                                        <input
+                                            type="text"
+                                            readOnly
+                                            value={`$${info.subtotal.toFixed(2)}`}
+                                            style={{
+                                                ...inputStyle,
+                                                flex: 1,
+                                                opacity: 0.75,
+                                                cursor: 'default',
+                                            }}
+                                        />
+
                                         <button
                                             type="button"
                                             onClick={() => handleRemoveRow(info.row.rowId)}
@@ -246,9 +305,15 @@ export default function BuyMaterialsModal({
                         })}
                     </div>
 
-                    <button type="button" onClick={handleAddRow} style={addBtnStyle}>
-                        + Add Material
-                    </button>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
+                        <button type="button" onClick={handleAddRow} style={addBtnStyle}>
+                            + Add Material
+                        </button>
+
+                        <div style={{ color: '#e2e8f0', fontSize: '15px', fontWeight: 600, marginRight: '46px' }}>
+                            Total: <span style={{ color: '#2dd4bf' }}>${totalCost.toFixed(2)}</span>
+                        </div>
+                    </div>
 
                     {apiError && (
                         <div style={{ color: '#f87171', fontSize: '13px', marginTop: '12px' }}>{apiError}</div>

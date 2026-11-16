@@ -23,6 +23,8 @@ interface SellRow {
 
 const newRow = (): SellRow => ({ rowId: crypto.randomUUID(), productId: '', quantity: '1' });
 
+const round = (n: number) => Math.round(n * 1e6) / 1e6;
+
 export default function SellProductsModal({
     isOpen,
     products,
@@ -56,8 +58,26 @@ export default function SellProductsModal({
         const qtyValid = Number.isInteger(qty) && qty > 0;
         const inStock = product ? stockByProductId.get(product.id) || 0 : 0;
 
-        return { row, product, qtyValid, inStock, exceedsStock: Boolean(product) && qtyValid && qty > inStock };
+        const wholesaleUnitPrice = product ? round(product.price) : 0;
+        const retailUnitPrice = product ? round(product.price * (product.retailRate || 1)) : 0;
+        const wholesaleRowTotal = product && qtyValid ? round(wholesaleUnitPrice * qty) : 0;
+        const retailRowTotal = product && qtyValid ? round(retailUnitPrice * qty) : 0;
+
+        return {
+            row,
+            product,
+            qtyValid,
+            inStock,
+            wholesaleUnitPrice,
+            retailUnitPrice,
+            wholesaleRowTotal,
+            retailRowTotal,
+            exceedsStock: Boolean(product) && qtyValid && qty > inStock,
+        };
     });
+
+    const totalWholesale = round(rowInfos.reduce((sum, r) => sum + r.wholesaleRowTotal, 0));
+    const totalRetail = round(rowInfos.reduce((sum, r) => sum + r.retailRowTotal, 0));
 
     const isFormValid =
         rows.length > 0 && rowInfos.every((r) => r.product && r.qtyValid && !r.exceedsStock);
@@ -141,7 +161,8 @@ export default function SellProductsModal({
                     <div style={scrollAreaStyle}>
                         <div style={rowStyle(true)}>
                             <span style={{ ...headerLabelStyle, flex: 3 }}>Select Product</span>
-                            <span style={{ ...headerLabelStyle, flex: 1 }}>Quantity to Sell</span>
+                            <span style={{ ...headerLabelStyle, flex: 1 }}>Quantity</span>
+                            <span style={{ ...headerLabelStyle, flex: 1.5 }}>Wholesale / Retail</span>
                             <span style={{ width: '36px', flexShrink: 0 }} />
                         </div>
 
@@ -160,11 +181,16 @@ export default function SellProductsModal({
                                             onChange={(v) => handleRowChange(info.row.rowId, 'productId', v)}
                                             placeholder="-- Choose Product --"
                                             style={{ flex: 3 }}
-                                            options={sellableProducts.map((p) => ({
-                                                value: String(p.id),
-                                                label: `${p.name} (In stock: ${stockByProductId.get(p.id) || 0})`,
-                                                disabled: isTakenByOtherRow(info.row.rowId, p.id),
-                                            }))}
+                                            options={sellableProducts.map((p) => {
+                                                const wholesale = round(p.price);
+                                                const retail = round(p.price * (p.retailRate || 1));
+                                                return {
+                                                    value: String(p.id),
+                                                    label: `${p.name} (In stock: ${stockByProductId.get(p.id) || 0})`,
+                                                    hint: `$${wholesale.toFixed(2)} / $${retail.toFixed(2)}`,
+                                                    disabled: isTakenByOtherRow(info.row.rowId, p.id),
+                                                };
+                                            })}
                                         />
 
                                         <input
@@ -177,6 +203,27 @@ export default function SellProductsModal({
                                                 ...inputStyle,
                                                 flex: 1,
                                                 borderColor: info.exceedsStock ? '#f87171' : 'rgba(20, 184, 166, 0.4)',
+                                            }}
+                                        />
+
+                                        <input
+                                            type="text"
+                                            readOnly
+                                            value={
+                                                info.product
+                                                    ? `$${info.wholesaleRowTotal.toFixed(2)} / $${info.retailRowTotal.toFixed(2)}`
+                                                    : '—'
+                                            }
+                                            title={
+                                                info.product
+                                                    ? `Unit price: $${info.wholesaleUnitPrice.toFixed(2)} / $${info.retailUnitPrice.toFixed(2)}`
+                                                    : undefined
+                                            }
+                                            style={{
+                                                ...inputStyle,
+                                                flex: 1.5,
+                                                opacity: 0.75,
+                                                textAlign: 'center',
                                             }}
                                         />
 
@@ -200,18 +247,27 @@ export default function SellProductsModal({
                         })}
                     </div>
 
-                    <button
-                        type="button"
-                        onClick={handleAddRow}
-                        disabled={!canAddRow}
-                        style={{
-                            ...addBtnStyle,
-                            opacity: canAddRow ? 1 : 0.5,
-                            cursor: canAddRow ? 'pointer' : 'not-allowed',
-                        }}
-                    >
-                        + Add Product
-                    </button>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
+                        <button
+                            type="button"
+                            onClick={handleAddRow}
+                            disabled={!canAddRow}
+                            style={{
+                                ...addBtnStyle,
+                                opacity: canAddRow ? 1 : 0.5,
+                                cursor: canAddRow ? 'pointer' : 'not-allowed',
+                            }}
+                        >
+                            + Add Product
+                        </button>
+
+                        <div style={{ color: '#e2e8f0', fontSize: '14px', fontWeight: 600, marginRight: '46px' }}>
+                            Total wholesale/retail:{' '}
+                            <span style={{ color: '#2dd4bf' }}>${totalWholesale.toFixed(2)}</span>
+                            {' / '}
+                            <span style={{ color: '#38bdf8' }}>${totalRetail.toFixed(2)}</span>
+                        </div>
+                    </div>
 
                     {apiError && (
                         <div style={{ color: '#f87171', fontSize: '13px', marginTop: '12px' }}>{apiError}</div>

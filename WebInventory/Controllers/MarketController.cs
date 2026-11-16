@@ -22,7 +22,13 @@ public class MarketController(EfDbContext context) : ControllerBase
         {
             if (dbMaterials.TryGetValue(material.Unit.Name, out UnitStock u))
             {
-                u.Quantity += material.Quantity;
+                decimal totalQty = u.Quantity + material.Quantity;
+                if (u.Price != material.Price && totalQty > 0)
+                {
+                    u.Price = (u.Price * u.Quantity + material.Price * material.Quantity) / totalQty;
+                }
+
+                u.Quantity = totalQty;
             }
             else
             {
