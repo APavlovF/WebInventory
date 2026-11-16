@@ -22,6 +22,37 @@ namespace WebInventory.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("WebInventory.Models.Commission", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int?>("ProductId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("Rate")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Commissions");
+                });
+
             modelBuilder.Entity("WebInventory.Models.Invitation", b =>
                 {
                     b.Property<int>("Id")
@@ -83,9 +114,6 @@ namespace WebInventory.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.PrimitiveCollection<decimal[]>("Commissions")
-                        .HasColumnType("numeric(18,4)[]");
-
                     b.Property<decimal>("Markup")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
@@ -98,8 +126,9 @@ namespace WebInventory.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
-                    b.PrimitiveCollection<decimal[]>("RetailCommissions")
-                        .HasColumnType("numeric(18,4)[]");
+                    b.Property<decimal>("RetailRate")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
 
                     b.Property<string>("Sku")
                         .HasMaxLength(200)
@@ -232,6 +261,21 @@ namespace WebInventory.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("WebInventory.Models.Commission", b =>
+                {
+                    b.HasOne("WebInventory.Models.Product", null)
+                        .WithMany("Commissions")
+                        .HasForeignKey("ProductId");
+
+                    b.HasOne("WebInventory.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("WebInventory.Models.Item", b =>
                 {
                     b.HasOne("WebInventory.Models.Product", null)
@@ -284,6 +328,8 @@ namespace WebInventory.Migrations
 
             modelBuilder.Entity("WebInventory.Models.Product", b =>
                 {
+                    b.Navigation("Commissions");
+
                     b.Navigation("Items");
                 });
 #pragma warning restore 612, 618

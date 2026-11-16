@@ -75,6 +75,9 @@ public class ProductController(EfDbContext context) : ControllerBase
 
             item.Unit = existingUnit;
         }
+
+        //todo update commissions
+
         context.Products.Add(product);
         await context.SaveChangesAsync();
 
@@ -106,7 +109,13 @@ public class ProductController(EfDbContext context) : ControllerBase
                 p.LowStockAlert,
                 p.MaxStockAlert,
                 p.Quantity,
-                Product = new { p.Product!.Id, p.Product.Name, p.Product.Sku }
+                Product = new
+                {
+                    p.Product!.Id,
+                    p.Product.Name,
+                    p.Product.Price,
+                    p.Product.Sku
+                }
             })
             .ToList();
 

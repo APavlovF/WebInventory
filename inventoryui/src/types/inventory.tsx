@@ -20,6 +20,7 @@ export interface UnitStock {
     id: number;
     lowStockAlert: number;
     maxStockAlert: number;
+    price: number;
     quantity: number;
     unit: Unit;
 }
