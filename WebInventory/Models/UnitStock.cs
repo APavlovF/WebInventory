@@ -9,12 +9,14 @@ public class UnitStock : IEntityTypeConfiguration<UnitStock>
     public decimal LowStockAlert { get; set; }
     public int MaxStockAlert { get; set; }
     public decimal Quantity { get; set; }
+    public decimal Price { get; set; }
     public Unit Unit { get; set; }
     public User User { get; set; }
     public int UserId { get; set; }
 
     public void Configure(EntityTypeBuilder<UnitStock> builder)
     {
-        builder.Property(u => u.Quantity).HasPrecision(18, 4);
+        builder.Property(u => u.Quantity).HasPrecision(18, 2);
+        builder.Property(u => u.Price).HasPrecision(18, 2);
     }
 }

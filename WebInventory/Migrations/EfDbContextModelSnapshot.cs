@@ -83,9 +83,23 @@ namespace WebInventory.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.PrimitiveCollection<decimal[]>("Commissions")
+                        .HasColumnType("numeric(18,4)[]");
+
+                    b.Property<decimal>("Markup")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
                     b.Property<string>("Name")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
+
+                    b.Property<decimal>("Price")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.PrimitiveCollection<decimal[]>("RetailCommissions")
+                        .HasColumnType("numeric(18,4)[]");
 
                     b.Property<string>("Sku")
                         .HasMaxLength(200)
@@ -93,6 +107,10 @@ namespace WebInventory.Migrations
 
                     b.Property<int>("UserId")
                         .HasColumnType("integer");
+
+                    b.Property<decimal>("WorkCost")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
 
                     b.HasKey("Id");
 
@@ -167,9 +185,13 @@ namespace WebInventory.Migrations
                     b.Property<int>("MaxStockAlert")
                         .HasColumnType("integer");
 
+                    b.Property<decimal>("Price")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
                     b.Property<decimal>("Quantity")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
 
                     b.Property<int?>("UnitId")
                         .HasColumnType("integer");
