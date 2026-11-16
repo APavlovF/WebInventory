@@ -33,6 +33,8 @@ export interface UnitStock {
 export interface Product {
     id: number;
     name: string;
+    price: number;
+    retailRate: number;
     sku: string;
     items: Item[];
 }

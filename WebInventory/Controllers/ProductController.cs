@@ -113,6 +113,7 @@ public class ProductController(EfDbContext context) : ControllerBase
                     p.Product!.Id,
                     p.Product.Name,
                     p.Product.Price,
+                    p.Product.RetailRate,
                     p.Product.Sku
                 }
             })

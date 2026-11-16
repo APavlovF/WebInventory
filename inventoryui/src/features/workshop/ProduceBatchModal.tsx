@@ -96,25 +96,34 @@ export default function ProduceBatchModal({
         materialTotals.filter((m) => m.isInsufficient).map((m) => m.unitId)
     );
 
-    // Problems of each row
+    // Problems and subtotals of each row
     const rowInfos = rows.map((row) => {
         const product = productsById.get(row.productId);
         const qty = Number(row.quantity);
         const qtyValid = Number.isInteger(qty) && qty > 0;
         const existing = product ? stockByProductId.get(product.id) || 0 : 0;
         const items = product?.items ?? [];
+        const unitWholesale = product ? product.price : 0;
+        const unitRetail = product ? round(product.price * (product.retailRate ?? 1)) : 0;
 
         return {
             row,
             product,
             qtyValid,
             existing,
+            unitWholesale,
+            unitRetail,
+            wholesaleSubtotal: product && qtyValid ? round(unitWholesale * qty) : 0,
+            retailSubtotal: product && qtyValid ? round(unitRetail * qty) : 0,
             invalidRecipe: Boolean(product) && items.some((i) => !(i.quantity > 0)),
             exceedsLimit: Boolean(product) && qtyValid && existing + qty > maxStock,
             lacksMaterials:
                 Boolean(product) && qtyValid && items.some((i) => insufficientUnitIds.has(i.unit.id)),
         };
     });
+
+    const totalWholesale = round(rowInfos.reduce((sum, r) => sum + r.wholesaleSubtotal, 0));
+    const totalRetail = round(rowInfos.reduce((sum, r) => sum + r.retailSubtotal, 0));
 
     const isFormValid =
         rows.length > 0 &&
@@ -197,7 +206,8 @@ export default function ProduceBatchModal({
                     <div style={scrollAreaStyle}>
                         <div style={rowStyle(true)}>
                             <span style={{ ...headerLabelStyle, flex: 3 }}>Select Product</span>
-                            <span style={{ ...headerLabelStyle, flex: 1 }}>Quantity to Produce</span>
+                            <span style={{ ...headerLabelStyle, flex: 1 }}>Quantity</span>
+                            <span style={{ ...headerLabelStyle, flex: 1.4 }}>Wholesale / Retail</span>
                             <span style={{ width: '36px', flexShrink: 0 }} />
                         </div>
 
@@ -222,9 +232,11 @@ export default function ProduceBatchModal({
                                             style={{ flex: 3 }}
                                             options={products.map((p) => {
                                                 const inStock = stockByProductId.get(p.id) || 0;
+                                                const retail = round(p.price * (p.retailRate ?? 1));
                                                 return {
                                                     value: String(p.id),
                                                     label: `${p.name} (In stock: ${inStock} / ${maxStock})`,
+                                                    hint: `$${p.price.toFixed(2)} / $${retail.toFixed(2)}`,
                                                     disabled: inStock >= maxStock || isTakenByOtherRow(info.row.rowId, p.id),
                                                 };
                                             })}
@@ -245,6 +257,23 @@ export default function ProduceBatchModal({
                                                     info.exceedsLimit || info.lacksMaterials
                                                         ? '#f87171'
                                                         : 'rgba(20, 184, 166, 0.4)',
+                                            }}
+                                        />
+
+                                        <input
+                                            type="text"
+                                            readOnly
+                                            value={
+                                                info.product
+                                                    ? `$${info.unitWholesale.toFixed(2)} / $${info.unitRetail.toFixed(2)}`
+                                                    : ''
+                                            }
+                                            placeholder="—"
+                                            style={{
+                                                ...inputStyle,
+                                                flex: 1.4,
+                                                opacity: 0.75,
+                                                textAlign: 'right',
                                             }}
                                         />
 
@@ -271,18 +300,27 @@ export default function ProduceBatchModal({
                         })}
                     </div>
 
-                    <button
-                        type="button"
-                        onClick={handleAddRow}
-                        disabled={!canAddRow}
-                        style={{
-                            ...addBtnStyle,
-                            opacity: canAddRow ? 1 : 0.5,
-                            cursor: canAddRow ? 'pointer' : 'not-allowed',
-                        }}
-                    >
-                        + Add Product
-                    </button>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
+                        <button
+                            type="button"
+                            onClick={handleAddRow}
+                            disabled={!canAddRow}
+                            style={{
+                                ...addBtnStyle,
+                                opacity: canAddRow ? 1 : 0.5,
+                                cursor: canAddRow ? 'pointer' : 'not-allowed',
+                            }}
+                        >
+                            + Add Product
+                        </button>
+
+                        <div style={{ color: '#e2e8f0', fontSize: '15px', fontWeight: 600, marginRight: '46px' }}>
+                            Total wholesale/retail:{' '}
+                            <span style={{ color: '#2dd4bf' }}>${totalWholesale.toFixed(2)}</span>
+                            {' / '}
+                            <span style={{ color: '#38bdf8' }}>${totalRetail.toFixed(2)}</span>
+                        </div>
+                    </div>
 
                     {/* Total materials needed by the whole batch */}
                     {materialTotals.length > 0 && (
