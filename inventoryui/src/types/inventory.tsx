@@ -1,6 +1,11 @@
 // src/types/inventory.ts  (mirrors the C# classes)
 export const NO_MAX_LIMIT = 2147483647;
 
+export interface Commission {
+    id?: number;  // present for existing DB records, omitted/0 for new ones
+    name: string;
+    rate: number; // stored as decimal (e.g., 25% -> 0.25)
+}
 export interface Unit {
     id: number;
     measurement: string;

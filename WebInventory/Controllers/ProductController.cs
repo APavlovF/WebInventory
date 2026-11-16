@@ -76,8 +76,7 @@ public class ProductController(EfDbContext context) : ControllerBase
             item.Unit = existingUnit;
         }
 
-        //todo update commissions
-
+        product.Commissions = await ResolveCommissions(product.Commissions, userId);
         context.Products.Add(product);
         await context.SaveChangesAsync();
 
@@ -120,5 +119,40 @@ public class ProductController(EfDbContext context) : ControllerBase
             .ToList();
 
         return Ok(result);
+    }
+
+    async Task<List<Commission>> ResolveCommissions(List<Commission> incoming, int userId)
+    {
+        Dictionary<int, Commission> existingCommissions =
+            await context.Commissions.Where(c => c.UserId == userId).ToDictionaryAsync(c => c.Id);
+        Dictionary<(string Name, decimal Rate), Commission> newlyCreatedByKey = new();
+        List<Commission> resolved = [];
+        if (incoming == null) return resolved;
+        foreach (Commission c in incoming)
+        {
+            if (c.Id > 0 && existingCommissions.TryGetValue(c.Id, out Commission tracked))
+            {
+                // Reuse tracked entity from DB
+                resolved.Add(tracked);
+            }
+            else
+            {
+                (string, decimal Rate) key = (c.Name.Trim(), c.Rate);
+                if (!newlyCreatedByKey.TryGetValue(key, out var newComm))
+                {
+                    newComm = new()
+                    {
+                        Name = key.Item1,
+                        Rate = key.Rate,
+                        UserId = userId
+                    };
+                    newlyCreatedByKey[key] = newComm;
+                }
+
+                resolved.Add(newComm);
+            }
+        }
+
+        return resolved;
     }
 }

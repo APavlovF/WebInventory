@@ -24,6 +24,7 @@ public class WarehouseController(EfDbContext context) : ControllerBase
                 m.Id,
                 m.LowStockAlert,
                 m.MaxStockAlert,
+                m.Price,
                 m.Quantity,
                 Unit = new { m.Unit!.Id, m.Unit.Name, m.Unit.Measurement, m.Unit.Sku }
             })

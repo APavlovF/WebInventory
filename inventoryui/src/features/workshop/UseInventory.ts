@@ -3,7 +3,7 @@
 // Call refresh() whenever the database changed (after adding a product type or producing a batch).
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../../api';
-import type { Product, ProductStock, Unit, UnitStock } from '../../types/inventory';
+import type { Commission, Product, ProductStock, Unit, UnitStock } from '../../types/inventory';
 
 async function postJson<T>(path: string): Promise<T> {
     const response = await apiFetch(path, { method: 'POST' });
@@ -16,6 +16,7 @@ export function useInventory(isLoggedIn: boolean) {
     const [products, setProducts] = useState<Product[]>([]);           // product types with their Items
     const [productStocks, setProductStocks] = useState<ProductStock[]>([]); // how many of each product exist
     const [unitStocks, setUnitStocks] = useState<UnitStock[]>([]);     // how much of each material exists
+    const [commissions, setCommissions] = useState<Commission[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -24,14 +25,16 @@ export function useInventory(isLoggedIn: boolean) {
         setError(null);
         try {
             // Replace these URLs with your real routes
-            const [prods, pStocks, uStocks] = await Promise.all([
+            const [prods, pStocks, uStocks, comms] = await Promise.all([
                 postJson<Product[]>('/api/product/fetch'),
                 postJson<ProductStock[]>('/api/product/stock'),
                 postJson<UnitStock[]>('/api/materials/fetch'),
+                postJson<Commission[]>('/api/office/fetch'),
             ]);
             setProducts(prods);
             setProductStocks(pStocks);
             setUnitStocks(uStocks);
+            setCommissions(comms);
         } catch (err: any) {
             setError(err.message || 'Failed to load inventory.');
         } finally {
@@ -47,6 +50,7 @@ export function useInventory(isLoggedIn: boolean) {
             setProducts([]);
             setProductStocks([]);
             setUnitStocks([]);
+            setCommissions([]);
         }
     }, [isLoggedIn, refresh]);
 
@@ -57,5 +61,5 @@ export function useInventory(isLoggedIn: boolean) {
         return Array.from(map.values());
     }, [unitStocks]);
 
-    return { products, productStocks, unitStocks, units, isLoading, error, refresh };
+    return { products, productStocks, unitStocks, units, commissions, isLoading, error, refresh };
 }

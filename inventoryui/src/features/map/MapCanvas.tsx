@@ -20,7 +20,7 @@ export default function MapCanvas({ onBuildingClick, isLoggedIn }: MapCanvasProp
     const [dimensions, setDimensions] = useState({ width: 1200, height: 800 });
 
     const [activeModal, setActiveModal] = useState<'addProduct' | 'produceBatch' | 'buyMaterials' | 'sellProducts' | 'materialLimits' | null>(null);
-    const { products, productStocks, unitStocks, units, refresh } = useInventory(isLoggedIn);
+    const { products, productStocks, unitStocks, units, commissions, refresh } = useInventory(isLoggedIn);
 
     // Start with the right-facing asset since it begins at Warehouse traveling up to the Office
     const [carImageAsset, setCarImageAsset] = useState('map-car-right.png');
@@ -306,6 +306,8 @@ export default function MapCanvas({ onBuildingClick, isLoggedIn }: MapCanvasProp
             <AddProductTypeModal
                 isOpen={activeModal === 'addProduct'}
                 materials={units}
+                materialStocks={unitStocks}
+                availableCommissions={commissions}
                 onClose={() => setActiveModal(null)}
                 onSuccess={() => refresh()}
             />
