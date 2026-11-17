@@ -64,17 +64,17 @@ export default function BuildingNode({
     };
 
     // Color indicator helper for Warehouse status
-    const getStatusColor = (status: WarehouseStatus) => {
-        switch (status) {
-            case 'low stock':
-                return '#f87171'; // Red
-            case 'near full':
-                return '#fbbf24'; // Amber/Yellow
-            case 'ok':
-            default:
-                return '#2dd4bf'; // Teal
-        }
-    };
+    // const getStatusColor = (status: WarehouseStatus) => {
+    //     switch (status) {
+    //         case 'low stock':
+    //             return '#f87171'; // Red
+    //         case 'near full':
+    //             return '#fbbf24'; // Amber/Yellow
+    //         case 'ok':
+    //         default:
+    //             return '#2dd4bf'; // Teal
+    //     }
+    // };
 
     // Prevents clicking a button from also firing the building's main onClick
     const handleActionClick = (e: React.MouseEvent, action?: () => void) => {
