@@ -123,6 +123,75 @@ export default function MainFrame() {
                     {renderViewport()}
                 </div>
 
+                {/* Bottom-Left Promo & Subscription Card */}
+                <form
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        // Add your subscription logic here
+                    }}
+                    style={{
+                        position: 'absolute',
+                        bottom: '24px',
+                        left: '24px',
+                        zIndex: 20,
+                        width: '300px',
+                        padding: '16px',
+                        borderRadius: '12px',
+                        backgroundColor: 'rgba(15, 23, 42, 0.92)',
+                        backdropFilter: 'blur(8px)',
+                        border: '1px solid #1e293b',
+                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '10px'
+                    }}
+                >
+                    <div>
+                        <h3 style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: 600, color: '#f8fafc' }}>
+                            Like this inventory system?
+                        </h3>
+                        <p style={{ margin: 0, fontSize: '12px', lineHeight: '1.4', color: '#94a3b8' }}>
+                            Use this platform for your business or request a custom-built solution. Subscribe or reach out at{' '}
+                            <a href="mailto:pavlovfontanka@gmail.com" style={{ color: '#14b8a6', textDecoration: 'none' }}>
+                                pavlovfontanka@gmail.com
+                            </a>.
+                        </p>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                        <input
+                            type="email"
+                            required
+                            placeholder="Enter your email..."
+                            style={{
+                                flex: 1,
+                                padding: '6px 10px',
+                                fontSize: '12px',
+                                borderRadius: '6px',
+                                border: '1px solid #334155',
+                                backgroundColor: '#020617',
+                                color: '#f8fafc',
+                                outline: 'none'
+                            }}
+                        />
+                        <button
+                            type="submit"
+                            style={{
+                                padding: '6px 12px',
+                                fontSize: '12px',
+                                fontWeight: 600,
+                                borderRadius: '6px',
+                                border: 'none',
+                                backgroundColor: '#14b8a6',
+                                color: '#020617',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            Subscribe
+                        </button>
+                    </div>
+                </form>
+
                 <ScribeAdvisor message={isAuthenticated ? "All systems operational, milord." : "Sign in to manage our production, milord!"}
                     isDemoMode={!isAuthenticated} />
             </main>
@@ -130,4 +199,5 @@ export default function MainFrame() {
             {showLoginModal && <LoginModal onSuccess={() => { setIsAuthenticated(true); setShowLoginModal(false); }} onClose={() => setShowLoginModal(false)} />}
         </div>
     );
+
 }

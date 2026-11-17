@@ -526,7 +526,7 @@ export default function AddProductTypeModal({
 
                     {/* Wholesale Commissions Section */}
                     <div style={{ marginBottom: '14px' }}>
-                        <label style={labelStyle}>Commissions (optional)</label>
+                        <label style={labelStyle}>Commissions and Taxes (optional)</label>
 
                         {commissionRows.length > 0 && (
                             <div style={{ ...scrollAreaStyle, maxHeight: '130px' }}>
