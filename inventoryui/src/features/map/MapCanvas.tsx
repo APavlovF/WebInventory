@@ -1,7 +1,7 @@
 // src/features/map/MapCanvas.tsx
-import { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
 import BuildingNode from './BuildingNode';
+import MapVehicles from './MapVehicles';
 import { useInventory } from '../workshop/UseInventory';
 import AddProductTypeModal from '../workshop/AddProductTypeModal';
 import ProduceBatchModal from '../workshop/ProduceBatchModal';
@@ -21,10 +21,6 @@ export default function MapCanvas({ onBuildingClick, isLoggedIn }: MapCanvasProp
 
     const [activeModal, setActiveModal] = useState<'addProduct' | 'produceBatch' | 'buyMaterials' | 'sellProducts' | 'materialLimits' | null>(null);
     const { products, productStocks, unitStocks, units, commissions, refresh } = useInventory(isLoggedIn);
-
-    // Start with the right-facing asset since it begins at Warehouse traveling up to the Office
-    const [carImageAsset, setCarImageAsset] = useState('map-car-right.png');
-    const prevCarX = useRef<number | null>(null);
 
     useEffect(() => {
         const handleResize = () => {
@@ -166,8 +162,7 @@ export default function MapCanvas({ onBuildingClick, isLoggedIn }: MapCanvasProp
         return gridPoints.map(pt => projectCoordinate(pt.x, pt.y));
     };
 
-
-    // 1. Supply Logistics Truck (Warehouse ➔ Workshop Loop)
+    // 1. Supply Logistics Truck (Warehouse -> Workshop Loop)
     const truckRoutePoints = buildTerrainRoute([
         { x: 4, y: 12 },
         { x: 4, y: 8 },
@@ -212,7 +207,7 @@ export default function MapCanvas({ onBuildingClick, isLoggedIn }: MapCanvasProp
                 strokeDasharray="6, 6"
             />
         </g>
-    );   
+    );
 
     return (
         <div
@@ -227,73 +222,16 @@ export default function MapCanvas({ onBuildingClick, isLoggedIn }: MapCanvasProp
                 {renderTerrainRoad(generateSvgRoadPath(carCircuitPoints), '14, 165, 233')}
             </svg>
 
-            {/* --- SUPPLY LOGISTICS TRUCK (WAREHOUSE ➔ WORKSHOP LOOP) --- */}
-            <motion.div
-                animate={{ x: truckRoutePoints.map(p => p.x - 20), y: truckRoutePoints.map(p => p.y - 20) }}
-                transition={{ duration: 16, repeat: Infinity, ease: "linear" }}
-                style={{
-                    position: 'absolute', width: '40px', height: '40px', zIndex: 40,
-                    pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center'
-                }}
-            >
-                <img
-                    src="map-truck.png"
-                    alt="Truck"
-                    style={{
-                        width: '100%', height: 'auto',
-                        mixBlendMode: 'screen',
-                        filter: 'drop-shadow(0 2px 6px rgba(20, 184, 166, 0.4))'
-                    }}
-                />
-            </motion.div>
-
-            {/* --- GLOBAL FLEET PATROL CAR (FULL CIRCUIT LOOP) --- */}
-            <motion.div
-                animate={{
-                    x: carCircuitPoints.map(p => p.x - 16),
-                    y: carCircuitPoints.map(p => p.y - 16),
-                }}
-                onUpdate={(latest: any) => {
-                    if (latest.x !== undefined) {
-                        if (prevCarX.current !== null) {
-                            const deltaX = latest.x - prevCarX.current;
-
-                            // Switch sprite based on horizontal movement (with a small 0.2px threshold to prevent jitter)
-                            if (deltaX > 0.2 && carImageAsset !== 'map-car-right.png') {
-                                setCarImageAsset('map-car-right.png');
-                            } else if (deltaX < -0.2 && carImageAsset !== 'map-car-left.png') {
-                                setCarImageAsset('map-car-left.png');
-                            }
-                        }
-                        prevCarX.current = latest.x;
-                    }
-                }}
-                transition={{
-                    duration: 38,
-                    repeat: Infinity,
-                    ease: "linear"
-                }}
-                style={{
-                    position: 'absolute', width: '32px', height: '32px', zIndex: 41,
-                    pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center'
-                }}
-            >
-                <img
-                    src={carImageAsset}
-                    alt="Car"
-                    style={{
-                        width: '100%',
-                        height: 'auto',
-                        mixBlendMode: 'screen',
-                        filter: 'drop-shadow(0 2px 6px rgba(14, 165, 233, 0.4))'
-                    }}
-                />
-            </motion.div>
+            {/* Dynamic 4-Way Isometric Vehicles */}
+            <MapVehicles
+                truckRoutePoints={truckRoutePoints}
+                carCircuitPoints={carCircuitPoints}
+            />
 
             {/* Scattered Infrastructure Building Nodes */}
             <BuildingNode name="Warehouse" top={`${warehousePt.y - 75}px`} left={`${warehousePt.x - 65}px`} imgSrc="map-warehouse.png"
                 onClick={() => onBuildingClick('Warehouse')}
-                onSetupStockLimits={() => setActiveModal('materialLimits')}            />
+                onSetupStockLimits={() => setActiveModal('materialLimits')} />
             <BuildingNode name="Office" top={`${officePt.y - 75}px`} left={`${officePt.x - 65}px`} imgSrc="map-office.png" onClick={() => onBuildingClick('Office')} />
             <BuildingNode name="Workshop" top={`${workshopPt.y - 75}px`} left={`${workshopPt.x - 65}px`} imgSrc="map-workshop.png" onClick={() => onBuildingClick('Workshop')}
                 onNewProduct={() => setActiveModal('addProduct')} onCreateProducts={() => setActiveModal('produceBatch')} />
@@ -302,6 +240,7 @@ export default function MapCanvas({ onBuildingClick, isLoggedIn }: MapCanvasProp
                 onBuyMaterials={() => setActiveModal('buyMaterials')}
                 onSellProducts={() => setActiveModal('sellProducts')}
             />
+
             {/* Workshop forms */}
             <AddProductTypeModal
                 isOpen={activeModal === 'addProduct'}
@@ -341,7 +280,7 @@ export default function MapCanvas({ onBuildingClick, isLoggedIn }: MapCanvasProp
 
             {/* Warehouse forms */}
             <MaterialLimitsModal
-                isOpen={activeModal === 'materialLimits'}                
+                isOpen={activeModal === 'materialLimits'}
                 isAuthenticated={isLoggedIn}
                 unitStocks={unitStocks}
                 onClose={() => setActiveModal(null)}
