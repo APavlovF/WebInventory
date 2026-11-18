@@ -3,21 +3,31 @@ using Google.GenAI;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using QuestPDF.Infrastructure;
 using System.Text;
 using WebInventory.Data;
 using WebInventory.InvoiceAi;
 using WebInventory.Services;
+
+QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.Configure<InvoiceParserOptions>(builder.Configuration.GetSection(InvoiceParserOptions.SectionName));
 
 builder.Services.AddSingleton(new Client(apiKey: builder.Configuration["GEMINI_API_KEY"]));
-builder.Services.AddTransient<DapperDbContext>();
-builder.Services.AddTransient<IDatabaseReader, DapperReader>();
 builder.Services.AddTransient<InvoiceParser>();
 builder.Services.AddSingleton<JwtService>();
 builder.Services.AddSingleton<PasswordService>();
+
+builder.Services.AddScoped<IFileWriter, CsvWriter>();
+builder.Services.AddScoped<IFileWriterFactory, FileWriterFactory>();
+builder.Services.AddScoped<IFileWriter, PdfFileWriter>();
+builder.Services.AddScoped<IFileWriter, TxtFileWriter>();
+builder.Services.AddScoped<IFileWriter, XlsxFileWriter>();
+
+builder.Services.AddTransient<DapperDbContext>();
+builder.Services.AddTransient<IDatabaseReader, DapperReader>();
 
 builder.Services.AddControllers();
 
@@ -46,7 +56,8 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins("http://localhost:56951", "https://apavlovf.github.io")
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .WithExposedHeaders("Content-Disposition");
     });
 });
 
