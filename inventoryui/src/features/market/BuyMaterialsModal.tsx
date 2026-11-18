@@ -80,8 +80,10 @@ export default function BuyMaterialsModal({
     const [rows, setRows] = useState<BuyRow[]>([newRow()]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isImporting, setIsImporting] = useState(false);
+    const [importStatus, setImportStatus] = useState<string>('Preparing file...');
     const [apiError, setApiError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const abortControllerRef = useRef<AbortController | null>(null);
 
     // Known materials by lower-case name
     const unitByName = useMemo(() => {
@@ -181,13 +183,21 @@ export default function BuyMaterialsModal({
             })
         );
 
+    const handleCancelImport = () => {
+        abortControllerRef.current?.abort();
+    };
+
     const handleInvoiceUpload = async (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         // Reset input value so selecting the same file again still triggers onChange
         e.target.value = '';
         if (!file) return;
 
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+
         setIsImporting(true);
+        setImportStatus('Connecting to server...');
         setApiError(null);
 
         try {
@@ -198,16 +208,55 @@ export default function BuyMaterialsModal({
             const response = await apiFetch('/api/invoice/parse', {
                 method: 'POST',
                 body: formData,
+                signal: controller.signal,
             });
 
             if (response.status === 401) {
                 throw new Error('You are not authorized. Please sign in again.');
             }
-            if (!response.ok) {
+            if (!response.ok || !response.body) {
                 throw new Error(`Invoice import failed (${response.status})`);
             }
 
-            const parsedItems: ParsedInvoiceItem[] = await response.json();
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let parsedItems: ParsedInvoiceItem[] | null = null;
+
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+
+                // SSE messages are separated by double newlines
+                const events = buffer.split('\n\n');
+                buffer = events.pop() ?? '';
+
+                for (const rawEvent of events) {
+                    let eventType = 'message';
+                    let dataStr = '';
+
+                    for (const line of rawEvent.split('\n')) {
+                        if (line.startsWith('event: ')) {
+                            eventType = line.slice(7).trim();
+                        } else if (line.startsWith('data: ')) {
+                            dataStr += line.slice(6);
+                        }
+                    }
+
+                    if (!dataStr) continue;
+                    const payload = JSON.parse(dataStr);
+
+                    if (eventType === 'status') {
+                        setImportStatus(payload.message);
+                    } else if (eventType === 'error') {
+                        throw new Error(payload.message);
+                    } else if (eventType === 'result') {
+                        parsedItems = payload;
+                    }
+                }
+            }
 
             if (!Array.isArray(parsedItems) || parsedItems.length === 0) {
                 throw new Error('No materials were found in the uploaded invoice.');
@@ -229,8 +278,13 @@ export default function BuyMaterialsModal({
 
             setRows(importedRows);
         } catch (err: any) {
-            setApiError(err.message || 'Error parsing invoice.');
+            if (err.name === 'AbortError') {
+                setApiError('Invoice import was canceled.');
+            } else {
+                setApiError(err.message || 'Error parsing invoice.');
+            }
         } finally {
+            abortControllerRef.current = null;
             setIsImporting(false);
         }
     };
@@ -351,14 +405,14 @@ export default function BuyMaterialsModal({
                             const errorText = info.duplicate
                                 ? 'This material is already in the list'
                                 : info.exceedsLimit
-                                ? `Exceeds max stock limit (in stock: ${info.existing}, max: ${maxStock})`
-                                : info.row.quantity !== '' && !info.qtyValid
-                                ? 'Enter a quantity above 0'
-                                : info.row.price !== '' && !info.priceValid
-                                ? 'Enter a valid price (0 or higher)'
-                                : info.missingMeasurement
-                                ? 'New material: enter its unit of measurement (kg, pcs, ...)'
-                                : null;
+                                    ? `Exceeds max stock limit (in stock: ${info.existing}, max: ${maxStock})`
+                                    : info.row.quantity !== '' && !info.qtyValid
+                                        ? 'Enter a quantity above 0'
+                                        : info.row.price !== '' && !info.priceValid
+                                            ? 'Enter a valid price (0 or higher)'
+                                            : info.missingMeasurement
+                                                ? 'New material: enter its unit of measurement (kg, pcs, ...)'
+                                                : null;
 
                             return (
                                 <div key={info.row.rowId} style={{ marginBottom: '8px' }}>
@@ -513,6 +567,83 @@ export default function BuyMaterialsModal({
                         </button>
                     </div>
                 </form>
+
+                {/* Invoice Import Progress Window */}
+                {isImporting && (
+                    <div
+                        style={{
+                            ...overlayStyle,
+                            zIndex: 1100,
+                            backgroundColor: 'rgba(15, 23, 42, 0.75)',
+                        }}
+                    >
+                        <div
+                            style={{
+                                ...modalStyle,
+                                width: '440px',
+                                minWidth: '440px',
+                                maxWidth: '90vw',
+                                boxSizing: 'border-box',
+                                textAlign: 'center',
+                                padding: '28px 24px',
+                            }}
+                        >
+                            {/* Spinner */}
+                            <div
+                                style={{
+                                    width: '36px',
+                                    height: '36px',
+                                    margin: '0 auto 16px',
+                                    border: '3px solid rgba(45, 212, 191, 0.25)',
+                                    borderTopColor: '#2dd4bf',
+                                    borderRadius: '50%',
+                                    animation: 'spin 1.5s linear infinite',
+                                }}
+                            />
+
+                            <h4 style={{ margin: '0 0 10px', color: '#2dd4bf', fontSize: '16px' }}>
+                                Importing Invoice
+                            </h4>
+
+                            {/* Fixed 2-line height prevents vertical jumping */}
+                            <div
+                                style={{
+                                    height: '44px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    margin: '0 0 20px',
+                                    padding: '0 8px',
+                                }}
+                            >
+                                <p
+                                    style={{
+                                        margin: 0,
+                                        color: '#cbd5e1',
+                                        fontSize: '14px',
+                                        lineHeight: '20px',
+                                        overflowWrap: 'anywhere',
+                                    }}
+                                >
+                                    {importStatus}
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={handleCancelImport}
+                                style={{
+                                    ...cancelBtnStyle,
+                                    borderColor: '#f87171',
+                                    color: '#f87171',
+                                }}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+
+                    </div>
+                )}
             </div>
         </div>
     );

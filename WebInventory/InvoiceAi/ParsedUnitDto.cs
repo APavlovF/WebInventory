@@ -2,6 +2,6 @@
 
 public class ParsedUnitDto
 {
-    public string Name { get; set; } = "";
-    public string Measurement { get; set; } = "pcs";
+    public string? Name { get; set; }
+    public string? Measurement { get; set; }
 }

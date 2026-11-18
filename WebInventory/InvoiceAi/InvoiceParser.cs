@@ -4,22 +4,21 @@ using Microsoft.Extensions.Options;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using WebInventory.Services;
 
 namespace WebInventory.InvoiceAi;
 
 public class InvoiceParser(Client geminiClient, IOptions<InvoiceParserOptions> options)
 {
-    public async Task<List<ParsedInvoiceItemDto>> ParseInvoice(
-        string ext,
+    public async Task<List<ParsedInvoiceItemDto>> ParseInvoice(string ext,
         byte[] fileBytes,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, Func<string, object, Task> sendEventAsync)
     {
+        await sendEventAsync("status", new { message = "Uploading invoice..." });
         List<Part> parts =
         [
             Part.FromText(options.Value.Prompt),
-            ext == ".pdf"
-                ? Part.FromBytes(fileBytes, "application/pdf")
-                : Part.FromText(Encoding.UTF8.GetString(fileBytes))
+            await GetTextPart()
         ];
 
         GenerateContentConfig config = new GenerateContentConfig
@@ -28,10 +27,12 @@ public class InvoiceParser(Client geminiClient, IOptions<InvoiceParserOptions> o
         };
 
         GenerateContentResponse response = null;
-        foreach (var modelName in options.Value.CandidateModels)
+        foreach (string modelName in options.Value.CandidateModels)
         {
             for (int attempt = 1; attempt <= 2; attempt++)
             {
+                await sendEventAsync("status",
+                    new { message = $"Attempt {attempt}: extracting document contents with {modelName}..." });
                 try
                 {
                     response = await geminiClient.Models.GenerateContentAsync(
@@ -51,8 +52,12 @@ public class InvoiceParser(Client geminiClient, IOptions<InvoiceParserOptions> o
             if (response != null) break;
         }
 
-        if (response == null) return [];
-        //return StatusCode(503, $"AI service is temporarily busy. Please try again shortly. ({lastError?.Message})");
+        if (response == null)
+        {
+            await sendEventAsync("status",
+                new { message = "AI service is temporarily busy. Please try again shortly." });
+            return [];
+        }
 
         string json = response.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text ?? "{}";
         InvoiceExtractionEnvelope extracted = JsonSerializer.Deserialize<InvoiceExtractionEnvelope>(
@@ -61,58 +66,24 @@ public class InvoiceParser(Client geminiClient, IOptions<InvoiceParserOptions> o
             { PropertyNameCaseInsensitive = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull }
         );
 
-        // Normalize negative quantities (e.g. qty -1, price 10 -> qty 1, price -10) so UI validation (qty > 0) passes
-        List<ParsedInvoiceItemDto> rawItems = (extracted?.Items ?? [])
-            .Where(i => i.Unit != null && !string.IsNullOrWhiteSpace(i.Unit.Name) && i.Quantity != 0)
-            .Select(i => i.Quantity < 0
-                ? new ParsedInvoiceItemDto { Quantity = Math.Abs(i.Quantity), Price = -i.Price, Unit = i.Unit }
-                : i)
-            .ToList();
+        await sendEventAsync("status", new { message = "Finalizing items..." });
 
-        if (rawItems.Count == 0) return [];
+        return InvoiceHelper.GetGroupedItems(extracted);
 
-        // 1. Distribute taxes/fees only when both linesSubtotal and grandTotal are positive and differ
-        decimal linesSubtotal = rawItems.Sum(i => i.Quantity * i.Price);
-        decimal grandTotal = extracted?.GrandTotal ?? 0m;
-        decimal multiplier = 1m;
-        if (linesSubtotal > 0m && grandTotal > 0m && Math.Abs(grandTotal - linesSubtotal) > 0.005m)
+        async Task<Part> GetTextPart()
         {
-            multiplier = grandTotal / linesSubtotal;
-        }
-
-        // 2. Group items with the same normalized Name and Measurement
-        List<ParsedInvoiceItemDto> groupedItems = rawItems
-            .GroupBy(i => (
-                Name: i.Unit?.Name?.Trim().ToLowerInvariant(),
-                Measurement: string.IsNullOrWhiteSpace(i.Unit?.Measurement)
-                    ? "pcs"
-                    : i.Unit.Measurement.Trim().ToLowerInvariant()
-            ))
-            .Select(group =>
+            if (ext != ".pdf") return Part.FromText(Encoding.UTF8.GetString(fileBytes));
+            await sendEventAsync("status", new { message = "Extracting text from PDF..." });
+            string extractedText = PdfService.ExtractText(fileBytes);
+            if (extractedText.Length >= 30)
             {
-                var first = group.First();
-                var cleanName = first.Unit?.Name?.Trim();
-                var cleanMeasurement = string.IsNullOrWhiteSpace(first.Unit?.Measurement)
-                    ? "pcs"
-                    : first.Unit.Measurement.Trim();
+                return Part.FromText(extractedText);
+            }
 
-                decimal totalQuantity = group.Sum(x => x.Quantity);
-                decimal totalGroupCost = group.Sum(x => x.Quantity * x.Price * multiplier);
+            // Fallback for scanned/image-only PDFs
+            await sendEventAsync("status", new { message = "Scanned PDF detected, running AI vision..." });
+            return Part.FromBytes(fileBytes, "application/pdf");
 
-                // Round to 2 decimal places (cents)
-                var weightedAvgUnitPrice = totalQuantity > 0m
-                    ? Math.Round(totalGroupCost / totalQuantity, 2, MidpointRounding.AwayFromZero)
-                    : 0m;
-
-                return new ParsedInvoiceItemDto
-                {
-                    Unit = new ParsedUnitDto { Name = cleanName, Measurement = cleanMeasurement },
-                    Quantity = totalQuantity,
-                    Price = weightedAvgUnitPrice
-                };
-            })
-            .ToList();
-
-        return groupedItems;
+        }
     }
 }

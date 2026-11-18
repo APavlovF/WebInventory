@@ -2,6 +2,6 @@
 
 public class InvoiceExtractionEnvelope
 {
-    public List<ParsedInvoiceItemDto> Items { get; set; }
-    public decimal GrandTotal { get; set; }
+    public List<ParsedInvoiceItemDto>? Items { get; set; }
+    public decimal? GrandTotal { get; set; }
 }
