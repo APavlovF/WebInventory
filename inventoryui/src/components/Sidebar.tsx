@@ -1,6 +1,6 @@
 // src/components/Sidebar.tsx
 
-type TabType = 'Overview' | 'Inventory' | 'Products' | 'Orders' | 'Reports';
+type TabType = 'Overview' | 'Inventory' | 'Products' | 'Orders';
 
 interface SidebarProps {
     activeTab: TabType;
@@ -10,8 +10,8 @@ interface SidebarProps {
     onLogoutClick: () => void;
 }
 
-export default function Sidebar({ activeTab, setActiveTab, isAuthenticated, onLoginClick, onLogoutClick }: SidebarProps) {
-    const menuItems: TabType[] = ['Overview', 'Inventory', 'Products', 'Orders', 'Reports'];
+export default function Sidebar({ activeTab, setActiveTab, isAuthenticated, onLoginClick, onLogoutClick }: SidebarProps) {    
+    const menuItems: TabType[] = ['Overview', 'Inventory', 'Products', 'Orders'];
 
     return (
         <aside style={{

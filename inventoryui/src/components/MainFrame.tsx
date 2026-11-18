@@ -2,23 +2,23 @@
 import { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import MapCanvas from '../features/map/MapCanvas';
-import Inventory from '../forms/inventory';
-import Products from '../forms/products';
 import Orders from '../forms/orders';
-import Reports from '../forms/reports';
 import ScribeAdvisor from './ScribeAdvisor';
 import LoginModal from './LoginModal';
+import InventoryTable from '../reports/InventoryTable';
+import ProductsTable from '../reports/ProductsTable';
+import { useInventory } from '../features/workshop/UseInventory';
 
 const EXPIRATION_TIME_MS = 5 * 60 * 1000;
 
-type TabType = 'Overview' | 'Inventory' | 'Products' | 'Orders' | 'Reports';
+type TabType = 'Overview' | 'Inventory' | 'Products' | 'Orders';
 
 // Building -> form tab (same order as the form files)
 const buildingToTab: Record<string, TabType> = {
     Warehouse: 'Inventory',
     Workshop: 'Products',
     Market: 'Orders',
-    Office: 'Reports',
+    Office: 'Orders',
 };
 
 export default function MainFrame() {
@@ -26,6 +26,7 @@ export default function MainFrame() {
     const [viewportTitle, setViewportTitle] = useState<string>('Overview');
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
     const [showLoginModal, setShowLoginModal] = useState<boolean>(false);
+    const isFormView = isAuthenticated && activeTab !== 'Overview';
 
     useEffect(() => {
         const checkSessionExpiration = () => {
@@ -65,14 +66,16 @@ export default function MainFrame() {
         }
     };
 
+    const { unitStocks, products, productStocks, isLoading, error } = useInventory(isAuthenticated);
+
     // Logged in + a form tab selected -> show the form, otherwise the map
     const renderViewport = () => {
         if (isAuthenticated) {
             switch (activeTab) {
-                case 'Inventory': return <Inventory />;
-                case 'Products': return <Products />;
+                case 'Inventory': return <InventoryTable unitStocks={unitStocks} isLoading={isLoading} error={error} />;
+                case 'Products': return <ProductsTable productStocks={productStocks} products={products} isLoading={isLoading} error={error} />;
                 case 'Orders': return <Orders />;
-                case 'Reports': return <Reports />;
+                //case 'Reports': return <Reports />;
             }
         }
         return <MapCanvas onBuildingClick={handleBuildingClick} isLoggedIn={isAuthenticated} />;
@@ -123,77 +126,81 @@ export default function MainFrame() {
                     {renderViewport()}
                 </div>
 
-                {/* Bottom-Left Promo & Subscription Card */}
-                <form
-                    onSubmit={(e) => {
-                        e.preventDefault();
-                        // Add your subscription logic here
-                    }}
-                    style={{
-                        position: 'absolute',
-                        bottom: '24px',
-                        left: '24px',
-                        zIndex: 20,
-                        width: '300px',
-                        padding: '16px',
-                        borderRadius: '12px',
-                        backgroundColor: 'rgba(15, 23, 42, 0.92)',
-                        backdropFilter: 'blur(8px)',
-                        border: '1px solid #1e293b',
-                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '10px'
-                    }}
-                >
-                    <div>
-                        <h3 style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: 600, color: '#f8fafc' }}>
-                            Like this inventory system?
-                        </h3>
-                        <p style={{ margin: 0, fontSize: '12px', lineHeight: '1.4', color: '#94a3b8' }}>
-                            Use this platform for your business or request a custom-built solution. Subscribe or reach out at{' '}
-                            <a href="mailto:pavlovfontanka@gmail.com" style={{ color: '#14b8a6', textDecoration: 'none' }}>
-                                pavlovfontanka@gmail.com
-                            </a>.
-                        </p>
-                    </div>
+                { }
+                {!isFormView && (
+                    <form
+                        onSubmit={(e) => {
+                            e.preventDefault();
+                            // Add your subscription logic here
+                        }}
+                        style={{
+                            position: 'absolute',
+                            bottom: '24px',
+                            left: '24px',
+                            zIndex: 20,
+                            width: '300px',
+                            padding: '16px',
+                            borderRadius: '12px',
+                            backgroundColor: 'rgba(15, 23, 42, 0.92)',
+                            backdropFilter: 'blur(8px)',
+                            border: '1px solid #1e293b',
+                            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '10px'
+                        }}
+                    >
+                        <div>
+                            <h3 style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: 600, color: '#f8fafc' }}>
+                                Like this inventory system?
+                            </h3>
+                            <p style={{ margin: 0, fontSize: '12px', lineHeight: '1.4', color: '#94a3b8' }}>
+                                Use this platform for your business or request a custom-built solution. Subscribe or reach out at{' '}
+                                <a href="mailto:pavlovfontanka@gmail.com" style={{ color: '#14b8a6', textDecoration: 'none' }}>
+                                    pavlovfontanka@gmail.com
+                                </a>.
+                            </p>
+                        </div>
 
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                        <input
-                            type="email"
-                            required
-                            placeholder="Enter your email..."
-                            style={{
-                                flex: 1,
-                                padding: '6px 10px',
-                                fontSize: '12px',
-                                borderRadius: '6px',
-                                border: '1px solid #334155',
-                                backgroundColor: '#020617',
-                                color: '#f8fafc',
-                                outline: 'none'
-                            }}
-                        />
-                        <button
-                            type="submit"
-                            style={{
-                                padding: '6px 12px',
-                                fontSize: '12px',
-                                fontWeight: 600,
-                                borderRadius: '6px',
-                                border: 'none',
-                                backgroundColor: '#14b8a6',
-                                color: '#020617',
-                                cursor: 'pointer'
-                            }}
-                        >
-                            Subscribe
-                        </button>
-                    </div>
-                </form>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                            <input
+                                type="email"
+                                required
+                                placeholder="Enter your email..."
+                                style={{
+                                    flex: 1,
+                                    padding: '6px 10px',
+                                    fontSize: '12px',
+                                    borderRadius: '6px',
+                                    border: '1px solid #334155',
+                                    backgroundColor: '#020617',
+                                    color: '#f8fafc',
+                                    outline: 'none'
+                                }}
+                            />
+                            <button
+                                type="submit"
+                                style={{
+                                    padding: '6px 12px',
+                                    fontSize: '12px',
+                                    fontWeight: 600,
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    backgroundColor: '#14b8a6',
+                                    color: '#020617',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Subscribe
+                            </button>
+                        </div>
+                    </form>
+                )}
 
-                <ScribeAdvisor message={isAuthenticated ? "All systems operational, milord." : "Sign in to manage our production, milord!"}
-                    isDemoMode={!isAuthenticated} />
+                {!isFormView && (
+                    <ScribeAdvisor message={isAuthenticated ? "All systems operational, milord." : "Sign in to manage our production, milord!"}
+                        isDemoMode={!isAuthenticated} />
+                )}
             </main>
 
             {showLoginModal && <LoginModal onSuccess={() => { setIsAuthenticated(true); setShowLoginModal(false); }} onClose={() => setShowLoginModal(false)} />}
