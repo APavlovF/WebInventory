@@ -1,9 +1,20 @@
 // src/features/market/BuyMaterialsModal.tsx
-import { useState, useMemo } from 'react';
-import type { SyntheticEvent } from 'react';
+import { useState, useMemo, useRef } from 'react';
+import type { SyntheticEvent, ChangeEvent } from 'react';
 import { apiFetch } from '../../api';
 import Combobox from '../shared/Combobox';
-import { overlayStyle, modalStyle, scrollAreaStyle, rowStyle, headerLabelStyle, inputStyle, addBtnStyle, removeBtnStyle, cancelBtnStyle, submitBtnStyle } from '../shared/ModalStyles';
+import {
+    overlayStyle,
+    modalStyle,
+    scrollAreaStyle,
+    rowStyle,
+    headerLabelStyle,
+    inputStyle,
+    addBtnStyle,
+    removeBtnStyle,
+    cancelBtnStyle,
+    submitBtnStyle,
+} from '../shared/ModalStyles';
 import type { Unit, UnitStock } from '../../types/inventory';
 import '../shared/modalForm.css';
 
@@ -24,7 +35,25 @@ interface BuyRow {
     measurement: string; // only used when the material is new
 }
 
-const newRow = (): BuyRow => ({ rowId: crypto.randomUUID(), name: '', quantity: '1', price: '0', measurement: '' });
+// Expected shape returned by your C# invoice parser endpoint (matches List<UnitStock>)
+interface ParsedInvoiceItem {
+    unit?: {
+        name?: string;
+        measurement?: string;
+    };
+    name?: string;
+    measurement?: string;
+    quantity: number;
+    price: number;
+}
+
+const newRow = (): BuyRow => ({
+    rowId: crypto.randomUUID(),
+    name: '',
+    quantity: '1',
+    price: '0',
+    measurement: '',
+});
 
 const normalize = (s: string) => s.trim().toLowerCase();
 
@@ -34,6 +63,11 @@ const round = (n: number) => Math.round(n * 1e6) / 1e6;
 // SKU for a brand-new material, generated from its name: "Oak wood" -> "OAK-WOOD"
 const makeSku = (name: string) =>
     name.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-+|-+$/g, '') || name.trim().toUpperCase();
+
+const gridRowLayout = {
+    display: 'grid',
+    gridTemplateColumns: '3fr 1fr 1fr 1fr 1fr 36px',
+} as const;
 
 export default function BuyMaterialsModal({
     isOpen,
@@ -45,7 +79,9 @@ export default function BuyMaterialsModal({
 }: BuyMaterialsModalProps) {
     const [rows, setRows] = useState<BuyRow[]>([newRow()]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isImporting, setIsImporting] = useState(false);
     const [apiError, setApiError] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
 
     // Known materials by lower-case name
     const unitByName = useMemo(() => {
@@ -115,7 +151,7 @@ export default function BuyMaterialsModal({
     };
 
     const handleClose = () => {
-        if (isSubmitting) return;
+        if (isSubmitting || isImporting) return;
         resetForm();
         onClose();
     };
@@ -145,9 +181,63 @@ export default function BuyMaterialsModal({
             })
         );
 
+    const handleInvoiceUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        // Reset input value so selecting the same file again still triggers onChange
+        e.target.value = '';
+        if (!file) return;
+
+        setIsImporting(true);
+        setApiError(null);
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            // Replace with your C# invoice parsing endpoint
+            const response = await apiFetch('/api/invoice/parse', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (response.status === 401) {
+                throw new Error('You are not authorized. Please sign in again.');
+            }
+            if (!response.ok) {
+                throw new Error(`Invoice import failed (${response.status})`);
+            }
+
+            const parsedItems: ParsedInvoiceItem[] = await response.json();
+
+            if (!Array.isArray(parsedItems) || parsedItems.length === 0) {
+                throw new Error('No materials were found in the uploaded invoice.');
+            }
+
+            const importedRows: BuyRow[] = parsedItems.map((item) => {
+                const rawName = (item.unit?.name ?? item.name ?? '').trim();
+                const matchedUnit = unitByName.get(normalize(rawName));
+                const rawMeasurement = (item.unit?.measurement ?? item.measurement ?? '').trim();
+
+                return {
+                    rowId: crypto.randomUUID(),
+                    name: matchedUnit ? matchedUnit.name : rawName,
+                    quantity: String(item.quantity ?? 1),
+                    price: String(item.price ?? 0),
+                    measurement: matchedUnit ? matchedUnit.measurement : rawMeasurement,
+                };
+            });
+
+            setRows(importedRows);
+        } catch (err: any) {
+            setApiError(err.message || 'Error parsing invoice.');
+        } finally {
+            setIsImporting(false);
+        }
+    };
+
     const handleSubmit = async (e: SyntheticEvent) => {
         e.preventDefault();
-        if (!isFormValid || isSubmitting) return;
+        if (!isFormValid || isSubmitting || isImporting) return;
 
         setIsSubmitting(true);
         setApiError(null);
@@ -191,18 +281,70 @@ export default function BuyMaterialsModal({
 
     return (
         <div style={overlayStyle}>
-            <div className="modal-form" style={modalStyle}>
-                <h3 style={{ margin: '0 0 16px 0', color: '#2dd4bf', textAlign: 'center' }}>Buy Materials</h3>
+            <div
+                className="modal-form"
+                style={{
+                    ...modalStyle,
+                    width: '900px',
+                    maxWidth: '95vw',
+                }}
+            >
+                {/* Header with Import Invoice Button */}
+                <div
+                    style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr auto 1fr',
+                        alignItems: 'center',
+                        marginBottom: '16px',
+                        gap: '12px',
+                    }}
+                >
+                    <div />
+
+                    <h3 style={{ margin: 0, color: '#2dd4bf', textAlign: 'center' }}>
+                        Buy Materials
+                    </h3>
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".pdf,.xlsx,.xls,.csv,.txt"
+                            onChange={handleInvoiceUpload}
+                            style={{ display: 'none' }}
+                        />
+                        <button
+                            type="button"
+                            disabled={isImporting || isSubmitting}
+                            onClick={() => fileInputRef.current?.click()}
+                            style={{
+                                ...addBtnStyle,
+                                marginTop: 0,
+                                whiteSpace: 'nowrap',
+                                opacity: isImporting || isSubmitting ? 0.6 : 1,
+                                cursor: isImporting || isSubmitting ? 'not-allowed' : 'pointer',
+                            }}
+                        >
+                            {isImporting ? 'Parsing...' : '📄 Import Invoice'}
+                        </button>
+                    </div>
+                </div>
 
                 <form onSubmit={handleSubmit}>
                     <div style={scrollAreaStyle}>
-                        <div style={rowStyle(true)}>
-                            <span style={{ ...headerLabelStyle, flex: 3 }}>Material (pick or type new)</span>
-                            <span style={{ ...headerLabelStyle, flex: 1 }}>Quantity</span>
-                            <span style={{ ...headerLabelStyle, flex: 1 }}>Unit</span>
-                            <span style={{ ...headerLabelStyle, flex: 1 }}>Price / Unit</span>
-                            <span style={{ ...headerLabelStyle, flex: 1 }}>Total</span>
-                            <span style={{ width: '36px', flexShrink: 0 }} />
+                        {/* Header Row */}
+                        <div
+                            style={{
+                                ...rowStyle(true),
+                                ...gridRowLayout,
+                            }}
+                        >
+                            <span style={{ ...headerLabelStyle, width: '100%' }}>Material (pick or type new)</span>
+                            <span style={{ ...headerLabelStyle, width: '100%' }}>Quantity</span>
+                            <span style={{ ...headerLabelStyle, width: '100%' }}>Unit</span>
+                            <span style={{ ...headerLabelStyle, width: '100%' }}>Price / Unit</span>
+                            <span style={{ ...headerLabelStyle, width: '100%' }}>Total</span>
+                            <span />
                         </div>
 
                         {rowInfos.map((info) => {
@@ -220,7 +362,12 @@ export default function BuyMaterialsModal({
 
                             return (
                                 <div key={info.row.rowId} style={{ marginBottom: '8px' }}>
-                                    <div style={rowStyle(false)}>
+                                    <div
+                                        style={{
+                                            ...rowStyle(false),
+                                            ...gridRowLayout,
+                                        }}
+                                    >
                                         <Combobox
                                             value={info.row.name}
                                             onChange={(v) => handleRowChange(info.row.rowId, 'name', v)}
@@ -228,8 +375,12 @@ export default function BuyMaterialsModal({
                                             maxLength={200}
                                             allowCustom
                                             invalid={info.duplicate}
-                                            style={{ flex: 3 }}
-                                            options={units.map((u) => ({ value: u.name, label: u.name, hint: u.measurement }))}
+                                            style={{ width: '100%', minWidth: 0 }}
+                                            options={units.map((u) => ({
+                                                value: u.name,
+                                                label: u.name,
+                                                hint: u.measurement,
+                                            }))}
                                         />
 
                                         <input
@@ -240,7 +391,6 @@ export default function BuyMaterialsModal({
                                             onChange={(e) => handleRowChange(info.row.rowId, 'quantity', e.target.value)}
                                             style={{
                                                 ...inputStyle,
-                                                flex: 1,
                                                 borderColor: info.exceedsLimit ? '#f87171' : 'rgba(20, 184, 166, 0.4)',
                                             }}
                                         />
@@ -249,10 +399,12 @@ export default function BuyMaterialsModal({
                                             type="text"
                                             value={info.unit ? info.unit.measurement : info.row.measurement}
                                             readOnly={Boolean(info.unit)}
-                                            onChange={(e) => handleRowChange(info.row.rowId, 'measurement', e.target.value)}
+                                            onChange={(e) =>
+                                                handleRowChange(info.row.rowId, 'measurement', e.target.value)
+                                            }
                                             placeholder="kg, pcs"
                                             maxLength={50}
-                                            style={{ ...inputStyle, flex: 1, opacity: info.unit ? 0.6 : 1 }}
+                                            style={{ ...inputStyle, opacity: info.unit ? 0.6 : 1 }}
                                         />
 
                                         <input
@@ -264,8 +416,10 @@ export default function BuyMaterialsModal({
                                             onChange={(e) => handleRowChange(info.row.rowId, 'price', e.target.value)}
                                             style={{
                                                 ...inputStyle,
-                                                flex: 1,
-                                                borderColor: info.row.price !== '' && !info.priceValid ? '#f87171' : 'rgba(20, 184, 166, 0.4)',
+                                                borderColor:
+                                                    info.row.price !== '' && !info.priceValid
+                                                        ? '#f87171'
+                                                        : 'rgba(20, 184, 166, 0.4)',
                                             }}
                                         />
 
@@ -275,7 +429,6 @@ export default function BuyMaterialsModal({
                                             value={`$${info.subtotal.toFixed(2)}`}
                                             style={{
                                                 ...inputStyle,
-                                                flex: 1,
                                                 opacity: 0.75,
                                                 cursor: 'default',
                                             }}
@@ -284,7 +437,10 @@ export default function BuyMaterialsModal({
                                         <button
                                             type="button"
                                             onClick={() => handleRemoveRow(info.row.rowId)}
-                                            style={{ ...removeBtnStyle, visibility: rows.length > 1 ? 'visible' : 'hidden' }}
+                                            style={{
+                                                ...removeBtnStyle,
+                                                visibility: rows.length > 1 ? 'visible' : 'hidden',
+                                            }}
                                             title="Remove material"
                                         >
                                             ✕
@@ -292,11 +448,25 @@ export default function BuyMaterialsModal({
                                     </div>
 
                                     {errorText ? (
-                                        <div style={{ color: '#f87171', fontSize: '12px', marginTop: '4px', paddingLeft: '4px' }}>
+                                        <div
+                                            style={{
+                                                color: '#f87171',
+                                                fontSize: '12px',
+                                                marginTop: '4px',
+                                                paddingLeft: '4px',
+                                            }}
+                                        >
                                             {errorText}
                                         </div>
                                     ) : info.isNew ? (
-                                        <div style={{ color: '#94a3b8', fontSize: '12px', marginTop: '4px', paddingLeft: '4px' }}>
+                                        <div
+                                            style={{
+                                                color: '#94a3b8',
+                                                fontSize: '12px',
+                                                marginTop: '4px',
+                                                paddingLeft: '4px',
+                                            }}
+                                        >
                                             New material "{info.row.name.trim()}" will be created
                                         </div>
                                     ) : null}
@@ -305,12 +475,19 @@ export default function BuyMaterialsModal({
                         })}
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
+                    <div
+                        style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginTop: '8px',
+                        }}
+                    >
                         <button type="button" onClick={handleAddRow} style={addBtnStyle}>
                             + Add Material
                         </button>
 
-                        <div style={{ color: '#e2e8f0', fontSize: '15px', fontWeight: 600, marginRight: '46px' }}>
+                        <div style={{ color: '#e2e8f0', fontSize: '15px', fontWeight: 600, marginRight: '44px' }}>
                             Total: <span style={{ color: '#2dd4bf' }}>${totalCost.toFixed(2)}</span>
                         </div>
                     </div>
@@ -325,11 +502,11 @@ export default function BuyMaterialsModal({
                         </button>
                         <button
                             type="submit"
-                            disabled={!isFormValid || isSubmitting}
+                            disabled={!isFormValid || isSubmitting || isImporting}
                             style={{
                                 ...submitBtnStyle,
-                                opacity: !isFormValid || isSubmitting ? 0.5 : 1,
-                                cursor: !isFormValid || isSubmitting ? 'not-allowed' : 'pointer',
+                                opacity: !isFormValid || isSubmitting || isImporting ? 0.5 : 1,
+                                cursor: !isFormValid || isSubmitting || isImporting ? 'not-allowed' : 'pointer',
                             }}
                         >
                             {isSubmitting ? 'Saving...' : 'Buy Materials'}
