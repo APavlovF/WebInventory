@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+/WebInventory/Properties/launchSettings.json
+/WebInventory/Properties/launchSettings.json
