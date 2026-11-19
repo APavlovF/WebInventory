@@ -8,13 +8,15 @@ interface BuildingNodeProps {
     top: string;
     left: string;
     imgSrc: string;
-    onClick: () => void;
+    onClick?: () => void;
     // Optional handlers for the building-specific action buttons
     onBuyMaterials?: () => void;
     onSellProducts?: () => void;
     onNewProduct?: () => void;
     onCreateProducts?: () => void;
     onSetupStockLimits?: () => void;
+    onImportInvoice?: () => void;
+    onProductionMap?: () => void;
     // Optional status for the Warehouse building
     warehouseStatus?: WarehouseStatus;
 }
@@ -29,7 +31,9 @@ export default function BuildingNode({
     onSellProducts,
     onNewProduct,
     onCreateProducts,
-    onSetupStockLimits,    
+    onSetupStockLimits,
+    onImportInvoice,
+    onProductionMap,
 }: BuildingNodeProps) {
     const [isHovered, setIsHovered] = useState(false);
     const [imgFailed, setImgFailed] = useState(false);
@@ -245,6 +249,51 @@ export default function BuildingNode({
                         }}
                     >
                         Setup stock limits
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onProductionMap?.();
+                        }}
+                        style={{
+                            padding: '5px 10px',
+                            background: 'rgba(20, 184, 166, 0.1)',
+                            color: '#2dd4bf',
+                            fontFamily: 'monospace',
+                            fontSize: '11px',
+                            fontWeight: 'bold',
+                            borderRadius: '4px',
+                            border: '1px solid rgba(45, 212, 191, 0.4)',
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap',
+                        }}
+                    >
+                        Production Map
+                    </button>
+                </div>
+            )}
+
+            {/* OFFICE: Rectangular panel TO THE RIGHT of the picture */}
+            {normalizedName === 'office' && (
+                <div
+                    style={{
+                        ...panelStyle,
+                        left: '100%',
+                        top: '35%',
+                        transform: 'translateY(-50%)',
+                        marginLeft: '12px',
+                        flexDirection: 'column',
+                        padding: '16px 20px',
+                    }}
+                >
+                    <button
+                        type="button"
+                        style={buttonStyle}
+                        onClick={(e) => handleActionClick(e, onImportInvoice)}
+                    >
+                        Import Invoice
                     </button>
                 </div>
             )}

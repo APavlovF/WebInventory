@@ -1,5 +1,5 @@
 // src/features/market/BuyMaterialsModal.tsx
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import type { SyntheticEvent, ChangeEvent } from 'react';
 import { apiFetch } from '../../api';
 import Combobox from '../shared/Combobox';
@@ -20,6 +20,7 @@ import '../shared/modalForm.css';
 
 interface BuyMaterialsModalProps {
     isOpen: boolean;
+    autoOpenImport?: boolean;
     units: Unit[];               // Known materials (offered as suggestions in the combobox)
     materialStocks: UnitStock[]; // Current stock per material
     maxStock: number;            // Max stock limit, applied per material
@@ -71,6 +72,7 @@ const gridRowLayout = {
 
 export default function BuyMaterialsModal({
     isOpen,
+    autoOpenImport = false,
     units,
     materialStocks,
     maxStock,
@@ -84,6 +86,13 @@ export default function BuyMaterialsModal({
     const [apiError, setApiError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
+    useEffect(() => {
+        if (isOpen && autoOpenImport) {
+            setTimeout(() => {
+                fileInputRef.current?.click();
+            }, 100);
+        }
+    }, [isOpen, autoOpenImport]);
 
     // Known materials by lower-case name
     const unitByName = useMemo(() => {

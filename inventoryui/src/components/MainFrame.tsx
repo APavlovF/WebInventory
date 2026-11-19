@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import MapCanvas from '../features/map/MapCanvas';
-import Orders from '../forms/orders';
 import ScribeAdvisor from './ScribeAdvisor';
 import LoginModal from './LoginModal';
 import InventoryTable from '../reports/InventoryTable';
@@ -11,14 +10,12 @@ import { useInventory } from '../features/workshop/UseInventory';
 
 const EXPIRATION_TIME_MS = 5 * 60 * 1000;
 
-type TabType = 'Overview' | 'Inventory' | 'Products' | 'Orders';
+type TabType = 'Overview' | 'Inventory' | 'Products';
 
 // Building -> form tab (same order as the form files)
 const buildingToTab: Record<string, TabType> = {
     Warehouse: 'Inventory',
-    Workshop: 'Products',
-    Market: 'Orders',
-    Office: 'Orders',
+    Workshop: 'Products',    
 };
 
 export default function MainFrame() {
@@ -72,10 +69,8 @@ export default function MainFrame() {
     const renderViewport = () => {
         if (isAuthenticated) {
             switch (activeTab) {
-                case 'Inventory': return <InventoryTable unitStocks={unitStocks} isLoading={isLoading} error={error} />;
-                case 'Products': return <ProductsTable productStocks={productStocks} products={products} isLoading={isLoading} error={error} />;
-                case 'Orders': return <Orders />;
-                //case 'Reports': return <Reports />;
+                case 'Inventory': return <InventoryTable unitStocks={unitStocks} isLoading={isLoading} error={error} onClose={() => handleTabChange('Overview')} />;
+                case 'Products': return <ProductsTable productStocks={productStocks} products={products} isLoading={isLoading} error={error} onClose={() => handleTabChange('Overview')} />;
             }
         }
         return <MapCanvas onBuildingClick={handleBuildingClick} isLoggedIn={isAuthenticated} />;

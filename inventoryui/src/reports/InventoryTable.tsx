@@ -15,6 +15,7 @@ interface InventoryTableProps {
     unitStocks: UnitStock[];
     isLoading?: boolean;
     error?: string | null;
+    onClose?: () => void;
 }
 
 // Same number style as ProduceBatchModal: "$" prefix, 2 decimals, no thousands separator
@@ -31,7 +32,7 @@ function fileNameFrom(response: Response, fallback: string): string {
     return plain ? plain[1] : fallback;
 }
 
-export default function InventoryTable({ unitStocks, isLoading = false, error = null }: InventoryTableProps) {
+export default function InventoryTable({ unitStocks, isLoading = false, error = null, onClose, }: InventoryTableProps) {
     const [exporting, setExporting] = useState<ExportFormat | null>(null);
     const [exportError, setExportError] = useState<string | null>(null);
 
@@ -109,12 +110,13 @@ export default function InventoryTable({ unitStocks, isLoading = false, error = 
     const message = exportError ?? error;
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', fontFamily: 'monospace' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', fontFamily: 'monospace', position: 'relative', }}>
             <div
                 style={{
                     flex: 1,
                     minHeight: 0,
                     overflow: 'auto',
+                    paddingTop: '48px',
                     scrollbarWidth: 'thin',
                     scrollbarColor: 'rgba(20, 184, 166, 0.5) #0f172a', // same dark theme scrollbar as the modals
                 }}
@@ -198,6 +200,30 @@ export default function InventoryTable({ unitStocks, isLoading = false, error = 
                     </span>
                 </div>
             </div>
+            {onClose && (
+                <button
+                    type="button"
+                    onClick={onClose}
+                    style={{
+                        position: 'absolute',
+                        top: '8px',
+                        right: '12px',
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '6px',
+                        border: '1px solid #334155',
+                        background: '#1e293b',
+                        color: '#94a3b8',
+                        cursor: 'pointer',
+                        fontFamily: 'monospace',
+                        fontSize: '18px',
+                        fontWeight: 'bold',
+                        zIndex: 9999,
+                    }}
+                >
+                    ×
+                </button>
+            )}
         </div>
     );
 }
