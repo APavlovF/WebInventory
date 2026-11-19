@@ -123,7 +123,7 @@ export default function MainFrame() {
 
                 { }
                 {!isFormView && (
-                    <form
+                    <div
                         onSubmit={(e) => {
                             e.preventDefault();
                             // Add your subscription logic here
@@ -157,39 +157,32 @@ export default function MainFrame() {
                             </p>
                         </div>
 
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                            <input
-                                type="email"
-                                required
-                                placeholder="Enter your email..."
-                                style={{
-                                    flex: 1,
-                                    padding: '6px 10px',
-                                    fontSize: '12px',
-                                    borderRadius: '6px',
-                                    border: '1px solid #334155',
-                                    backgroundColor: '#020617',
-                                    color: '#f8fafc',
-                                    outline: 'none'
-                                }}
-                            />
-                            <button
-                                type="submit"
-                                style={{
-                                    padding: '6px 12px',
-                                    fontSize: '12px',
-                                    fontWeight: 600,
-                                    borderRadius: '6px',
-                                    border: 'none',
-                                    backgroundColor: '#14b8a6',
-                                    color: '#020617',
-                                    cursor: 'pointer'
-                                }}
-                            >
-                                Subscribe
-                            </button>
-                        </div>
-                    </form>
+                        <button
+                            type="button"
+                            onClick={() =>
+                                alert(
+                                    'Thank you for your interest!\n' +
+                                    'The subscription system is not available yet.\n' +
+                                    'If you need a custom inventory, automation, production, warehouse, or business management solution, please contact:\n' +
+                                    'pavlovfontanka@gmail.com\n' +
+                                    'Our team would be happy to discuss your requirements and build a solution tailored to your business.'
+                                )
+                            }
+                            style={{
+                                padding: '8px 12px',
+                                fontSize: '12px',
+                                fontWeight: 600,
+                                borderRadius: '6px',
+                                border: 'none',
+                                backgroundColor: '#14b8a6',
+                                color: '#020617',
+                                cursor: 'pointer',
+                                alignSelf: 'center',
+                            }}
+                        >
+                            Subscribe
+                        </button>
+                    </div>
                 )}
 
                 {!isFormView && (
