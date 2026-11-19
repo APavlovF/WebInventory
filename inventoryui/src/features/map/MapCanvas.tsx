@@ -311,12 +311,16 @@ export default function MapCanvas({ onBuildingClick, isLoggedIn }: MapCanvasProp
 
             <RemoveMaterialModal
                 isOpen={activeModal === 'removeMaterial'}
+                materialStocks={unitStocks}
                 onClose={() => setActiveModal(null)}
+                onSuccess={() => refresh()}
             />
 
             <RemoveProductModal
                 isOpen={activeModal === 'removeProduct'}
+                products={products}
                 onClose={() => setActiveModal(null)}
+                onSuccess={refresh}
             />
         </div>
     );

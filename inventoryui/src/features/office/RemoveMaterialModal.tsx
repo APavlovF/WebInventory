@@ -40,15 +40,18 @@ export default function RemoveMaterialModal({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [apiError, setApiError] = useState<string | null>(null);
 
-    if (!isOpen) return null;
-
     const availableMaterials = useMemo(
         () =>
             materialStocks
                 .filter(x => !x.isDeleted)
-                .sort((a, b) => a.unit.name.localeCompare(b.unit.name)),
-        [materialStocks]
+                .filter(x =>
+                    !rows.some(r => r.unitStockId === x.id))
+                .sort((a, b) =>
+                    a.unit.name.localeCompare(b.unit.name)),
+        [materialStocks, rows]
     );
+
+    if (!isOpen) return null;
 
     const resetForm = () => {
         setSelectedMaterialId('');
@@ -195,10 +198,17 @@ export default function RemoveMaterialModal({
 
                     <button
                         type="button"
-                        style={addBtnStyle}
+                        style={{
+                            ...addBtnStyle,
+                            height: '36px',
+                            marginTop: 0,
+                            whiteSpace: 'nowrap',
+                            display: 'flex',
+                            alignItems: 'center',
+                        }}
                         onClick={handleAddMaterial}
                     >
-                        + Add To Removal List
+                        + Mark For Removal
                     </button>
                 </div>
 
@@ -213,7 +223,7 @@ export default function RemoveMaterialModal({
                             <tr>
                                 <th
                                     style={{
-                                        textAlign: 'left',
+                                        textAlign: 'center',
                                         padding: '10px',
                                         color: '#94a3b8',
                                     }}
@@ -223,7 +233,7 @@ export default function RemoveMaterialModal({
 
                                 <th
                                     style={{
-                                        textAlign: 'left',
+                                        textAlign: 'center',
                                         padding: '10px',
                                         color: '#94a3b8',
                                     }}
@@ -233,7 +243,7 @@ export default function RemoveMaterialModal({
 
                                 <th
                                     style={{
-                                        textAlign: 'left',
+                                        textAlign: 'center',
                                         padding: '10px',
                                         color: '#94a3b8',
                                     }}
@@ -251,7 +261,12 @@ export default function RemoveMaterialModal({
 
                         <tbody>
                             {rows.map(row => (
-                                <tr key={row.rowId}>
+                                <tr
+                                    key={row.rowId}
+                                    style={{
+                                        fontSize: '16px',
+                                    }}
+                                >
                                     <td
                                         style={{
                                             padding: '10px',

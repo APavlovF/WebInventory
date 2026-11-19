@@ -22,6 +22,7 @@ public class WarehouseController(EfDbContext context) : ControllerBase
             .Select(m => new
             {
                 m.Id,
+                m.IsDeleted,
                 m.LowStockAlert,
                 m.MaxStockAlert,
                 m.Price,

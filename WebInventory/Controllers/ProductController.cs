@@ -111,6 +111,7 @@ public class ProductController(EfDbContext context) : ControllerBase
                 Product = new
                 {
                     p.Product!.Id,
+                    p.Product.IsDeleted,
                     p.Product.Name,
                     p.Product.Price,
                     p.Product.RetailRate,
