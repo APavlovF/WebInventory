@@ -8,6 +8,7 @@ public class Product : IEntityTypeConfiguration<Product>
     public int Id { get; set; }
     public List<Commission> Commissions { get; set; }
     public string Name { get; set; }
+    public bool IsDeleted { get; set; }
     public List<Item> Items { get; set; }
     public decimal Markup { get; set; } = 1;
     public decimal Price { get; set; }

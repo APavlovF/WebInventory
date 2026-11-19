@@ -17,6 +17,8 @@ interface BuildingNodeProps {
     onSetupStockLimits?: () => void;
     onImportInvoice?: () => void;
     onProductionMap?: () => void;
+    onRemoveMaterial?: () => void;
+    onRemoveProduct?: () => void;
     // Optional status for the Warehouse building
     warehouseStatus?: WarehouseStatus;
 }
@@ -34,6 +36,8 @@ export default function BuildingNode({
     onSetupStockLimits,
     onImportInvoice,
     onProductionMap,
+    onRemoveMaterial,
+    onRemoveProduct,
 }: BuildingNodeProps) {
     const [isHovered, setIsHovered] = useState(false);
     const [imgFailed, setImgFailed] = useState(false);
@@ -293,7 +297,23 @@ export default function BuildingNode({
                         style={buttonStyle}
                         onClick={(e) => handleActionClick(e, onImportInvoice)}
                     >
-                        Import Invoice
+                        Import invoice
+                    </button>
+
+                    <button
+                        type="button"
+                        style={buttonStyle}
+                        onClick={(e) => handleActionClick(e, onRemoveMaterial)}
+                    >
+                        Remove material
+                    </button>
+
+                    <button
+                        type="button"
+                        style={buttonStyle}
+                        onClick={(e) => handleActionClick(e, onRemoveProduct)}
+                    >
+                        Remove product
                     </button>
                 </div>
             )}

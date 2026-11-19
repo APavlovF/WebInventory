@@ -9,6 +9,8 @@ import BuyMaterialsModal from '../market/BuyMaterialsModal';
 import SellProductsModal from '../market/SellProductsModal';
 import MaterialLimitsModal from '../warehouse/MaterialLimitsModal';
 import ProductionMapModal from '../warehouse/ProductionMapModal';
+import RemoveMaterialModal from '../office/RemoveMaterialModal';
+import RemoveProductModal from '../office/RemoveProductModal';
 
 const MAX_STOCK = 100;      // your max stock limit
 
@@ -20,7 +22,16 @@ interface MapCanvasProps {
 export default function MapCanvas({ onBuildingClick, isLoggedIn }: MapCanvasProps) {
     const [dimensions, setDimensions] = useState({ width: 1200, height: 800 });
     const [autoImport, setAutoImport] = useState(false);
-    const [activeModal, setActiveModal] = useState<'addProduct' | 'produceBatch' | 'buyMaterials' | 'sellProducts' | 'materialLimits' | 'productionMap' | null>(null);
+    const [activeModal, setActiveModal] = useState<
+          'addProduct'
+        | 'produceBatch'
+        | 'buyMaterials'
+        | 'sellProducts'
+        | 'materialLimits'
+        | 'productionMap'
+        | 'removeMaterial'
+        | 'removeProduct'
+        |  null > (null);
     const { products, productStocks, unitStocks, units, commissions, refresh } = useInventory(isLoggedIn);
 
     useEffect(() => {
@@ -235,7 +246,9 @@ export default function MapCanvas({ onBuildingClick, isLoggedIn }: MapCanvasProp
                 onSetupStockLimits={() => setActiveModal('materialLimits')}
                 onProductionMap={() => setActiveModal('productionMap')} />
             <BuildingNode name="Office" top={`${officePt.y - 75}px`} left={`${officePt.x - 65}px`} imgSrc="map-office.png"
-                onImportInvoice={() => { setAutoImport(true); setActiveModal('buyMaterials') }} />
+                onImportInvoice={() => { setAutoImport(true); setActiveModal('buyMaterials') }}
+                onRemoveMaterial={() => setActiveModal('removeMaterial')}
+                onRemoveProduct={() => setActiveModal('removeProduct')} />
             <BuildingNode name="Workshop" top={`${workshopPt.y - 75}px`} left={`${workshopPt.x - 65}px`} imgSrc="map-workshop.png" onClick={() => onBuildingClick('Workshop')}
                 onNewProduct={() => setActiveModal('addProduct')} onCreateProducts={() => setActiveModal('produceBatch')} />
             <BuildingNode name="Market" top={`${marketPt.y - 75}px`} left={`${marketPt.x - 65}px`} imgSrc="map-market.png"
@@ -293,6 +306,16 @@ export default function MapCanvas({ onBuildingClick, isLoggedIn }: MapCanvasProp
             <ProductionMapModal
                 isOpen={activeModal === 'productionMap'}
                 products={products}
+                onClose={() => setActiveModal(null)}
+            />
+
+            <RemoveMaterialModal
+                isOpen={activeModal === 'removeMaterial'}
+                onClose={() => setActiveModal(null)}
+            />
+
+            <RemoveProductModal
+                isOpen={activeModal === 'removeProduct'}
                 onClose={() => setActiveModal(null)}
             />
         </div>

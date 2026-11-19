@@ -23,6 +23,7 @@ export interface Item {
 // Available stock of a material
 export interface UnitStock {
     id: number;
+    isDeleted: boolean;
     lowStockAlert: number;
     maxStockAlert: number;
     price: number;
@@ -32,6 +33,7 @@ export interface UnitStock {
 
 export interface Product {
     id: number;
+    isDeleted: boolean;
     name: string;
     price: number;
     retailRate: number;

@@ -6,6 +6,7 @@ namespace WebInventory.Models;
 public class UnitStock : IEntityTypeConfiguration<UnitStock>
 {
     public int Id { get; set; }
+    public bool IsDeleted { get; set; }
     public decimal LowStockAlert { get; set; }
     public int MaxStockAlert { get; set; }
     public decimal Quantity { get; set; }
