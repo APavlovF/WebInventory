@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { useI18n } from '../i18n/I18nContext';
 import type { TKey } from '../i18n/en';
 import { c, alpha } from '../theme/themes';
+import MinimizeButton, { RestoreButton } from './MinimizeButton';
+import { useHiddenPanel } from './useHiddenPanel';
 
 // Injected at build time by vite.config.ts (git tag, commit or package.json version)
 declare const __APP_VERSION__: string;
@@ -25,6 +27,7 @@ export default function ScribeAdvisor({ message, isDemoMode = true }: ScribeAdvi
     const { t } = useI18n();
     const [demoIndex, setDemoIndex] = useState(0);
     const [isHovered, setIsHovered] = useState(false);
+    const [hidden, setHidden] = useHiddenPanel('advisor'); // the advisor can be minimised
 
     // Reset to the default prompt if auth state (or language) changes
     useEffect(() => {
@@ -35,6 +38,14 @@ export default function ScribeAdvisor({ message, isDemoMode = true }: ScribeAdvi
         if (!isDemoMode) return;
         setDemoIndex((prev) => (prev + 1) % DEMO_ADVISOR_KEYS.length);
     };
+
+    if (hidden) {
+        return (
+            <RestoreButton side="right" title={t('panel.showAdvisor')} onClick={() => setHidden(false)}>
+                <img src="advisor-man.png" alt={t('advisor.alt')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            </RestoreButton>
+        );
+    }
 
     const displayedMessage = isDemoMode ? t(DEMO_ADVISOR_KEYS[demoIndex]) : message;
 
@@ -66,6 +77,8 @@ export default function ScribeAdvisor({ message, isDemoMode = true }: ScribeAdvi
                 transition: 'border-color 0.2s ease'
             }}
         >
+            <MinimizeButton title={t('panel.hide')} onClick={() => setHidden(true)} />
+
             {/* Text on the left */}
             <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
                 <p style={{ fontSize: '14px', color: c.text, fontWeight: '500', fontStyle: 'italic', margin: '4px 0 0 0', lineHeight: '1.4' }}>

@@ -1,5 +1,5 @@
 // src/features/warehouse/MaterialLimitsModal.tsx
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import type { SyntheticEvent } from 'react';
 import { apiFetch } from '../../api';
 import {
@@ -20,6 +20,10 @@ import {
 import '../shared/modalForm.css';
 import { c, alpha } from '../../theme/themes';
 import { useI18n } from '../../i18n/I18nContext';
+
+// Lower-case and without accents, so "acai" finds "Açaí"
+const normalize = (text: string) =>
+    text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 
 interface MaterialLimitsModalProps {
     isOpen: boolean;
@@ -46,6 +50,18 @@ export default function MaterialLimitsModal({
     const [rows, setRows] = useState<LimitRow[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [apiError, setApiError] = useState<string | null>(null);
+    const [query, setQuery] = useState('');
+    const listRef = useRef<HTMLDivElement>(null);
+
+    // Closing the dialog clears the search
+    useEffect(() => {
+        if (!isOpen) setQuery('');
+    }, [isOpen]);
+
+    // A new search starts at the top of the list, where the matches are
+    useEffect(() => {
+        listRef.current?.scrollTo({ top: 0 });
+    }, [query]);
 
     const activeStocks = useMemo(() => (Array.isArray(unitStocks) ? unitStocks : []), [unitStocks]);
 
@@ -107,6 +123,22 @@ export default function MaterialLimitsModal({
         rowInfos.every((r) => r.minValid && r.maxValid && !r.maxBelowMin);
 
     const canSave = isFormValid && hasChanges && !isSubmitting;
+
+    // Search moves the matching materials to the top (nothing is hidden, and typed limits are kept):
+    // name starts with the text, then name contains it, then SKU contains it, then everything else
+    const q = normalize(query);
+    const rankOf = (stock: UnitStock) => {
+        if (!q) return 0;
+        const name = normalize(stock.unit.name);
+        if (name.startsWith(q)) return 0;
+        if (name.includes(q)) return 1;
+        if (normalize(stock.unit.sku ?? '').includes(q)) return 2;
+        return 3;
+    };
+    const orderedInfos = rowInfos
+        .map((info) => ({ info, rank: rankOf(info.row.stock) }))
+        .sort((a, b) => a.rank - b.rank); // stable: equal ranks keep their original order
+    const matchCount = q ? orderedInfos.filter((x) => x.rank < 3).length : 0;
 
     if (!isOpen) {
         return null;
@@ -207,7 +239,32 @@ export default function MaterialLimitsModal({
                     </div>
                 ) : (
                     <form onSubmit={handleSubmit}>
-                        <div style={scrollAreaStyle}>
+                        <input
+                            type="text"
+                            value={query}
+                            autoFocus
+                            autoComplete="off"
+                            placeholder={t('limits.search')}
+                            aria-label={t('limits.search')}
+                            onChange={(e) => setQuery(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault(); // Enter must not save the form
+                                } else if (e.key === 'Escape' && query) {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setQuery('');
+                                }
+                            }}
+                            style={{ ...inputStyle, marginBottom: '8px' }}
+                        />
+                        {q && matchCount === 0 && (
+                            <div style={{ color: c.textMuted, fontSize: '12px', margin: '0 0 8px 4px' }}>
+                                {t('limits.noMatches')}
+                            </div>
+                        )}
+
+                        <div ref={listRef} style={scrollAreaStyle}>
                             <div style={rowStyle(true)}>
                                 <span style={{ ...headerLabelStyle, flex: 2.5 }}>
                                     {t('common.material')}
@@ -220,7 +277,7 @@ export default function MaterialLimitsModal({
                                 </span>
                             </div>
 
-                            {rowInfos.map((info) => {
+                            {orderedInfos.map(({ info, rank }) => {
                                 const errorText = !info.minValid
                                     ? t('limits.errMin')
                                     : !info.maxValid
@@ -242,7 +299,8 @@ export default function MaterialLimitsModal({
                                                     display: 'flex',
                                                     justifyContent: 'space-between',
                                                     alignItems: 'center',
-                                                    backgroundColor: alpha('bgApp', 0.5),
+                                                    backgroundColor: q && rank < 3 ? alpha('accent', 0.15) : alpha('bgApp', 0.5),
+                                                    borderColor: q && rank < 3 ? alpha('accent', 0.7) : alpha('accent', 0.4),
                                                     cursor: 'default',
                                                 }}
                                             >

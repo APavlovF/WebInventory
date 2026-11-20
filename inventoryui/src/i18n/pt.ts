@@ -228,4 +228,10 @@ export const pt: Record<TKey, string> = {
     'export.demoDisabled': 'A exportação de relatórios está desativada no modo demonstração. Entre para baixar relatórios.',
     'buy.importDemoDisabled': 'A importação de notas fiscais está desativada no modo demonstração. Entre para importar notas fiscais.',
     'logo.demoDisabled': 'O envio do logotipo está desativado no modo demonstração. Entre para enviar seu logotipo.',
+    'limits.search': 'Buscar material ou SKU...',
+    'limits.noMatches': 'Nenhum material corresponde à busca.',
+
+    'panel.hide': 'Ocultar',
+    'panel.showSubscribe': 'Mostrar cartão de assinatura',
+    'panel.showAdvisor': 'Mostrar conselheiro',
 };

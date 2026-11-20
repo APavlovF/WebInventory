@@ -12,6 +12,8 @@ import { useI18n } from '../i18n/I18nContext';
 import type { TKey } from '../i18n/en';
 import { c, alpha } from '../theme/themes';
 import { apiFetch } from '../api';
+import MinimizeButton, { RestoreButton } from './MinimizeButton';
+import { useHiddenPanel } from './useHiddenPanel';
 
 const EXPIRATION_TIME_MS = 5 * 60 * 1000;
 const SUPPORT_EMAIL = 'pavlovfontanka@gmail.com';
@@ -57,6 +59,7 @@ export default function MainFrame() {
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
     const isFormView = activeTab !== 'Overview';
+    const [promoHidden, setPromoHidden] = useHiddenPanel('promo'); // the subscription card can be minimised
 
     // Load user's saved logo URL upon login
     const fetchUserLogo = async () => {
@@ -312,8 +315,13 @@ export default function MainFrame() {
                         {renderViewport()}
                     </div>
 
-                    {/* Bottom-left promo card: only on the map */}
-                    {!isFormView && (
+                    {/* Bottom-left promo card: only on the map, can be minimised */}
+                    {!isFormView && promoHidden && (
+                        <RestoreButton side="left" title={t('panel.showSubscribe')} onClick={() => setPromoHidden(false)}>
+                            ✉
+                        </RestoreButton>
+                    )}
+                    {!isFormView && !promoHidden && (
                         <div
                             style={{
                                 position: 'absolute',
@@ -332,8 +340,9 @@ export default function MainFrame() {
                                 gap: '10px'
                             }}
                         >
+                            <MinimizeButton title={t('panel.hide')} onClick={() => setPromoHidden(true)} />
                             <div>
-                                <h3 style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: 600, color: c.text }}>
+                                <h3 style={{ margin: '0 0 4px 0', paddingRight: '24px', fontSize: '14px', fontWeight: 600, color: c.text }}>
                                     {t('promo.title')}
                                 </h3>
                                 <p style={{ margin: 0, fontSize: '12px', lineHeight: '1.4', color: c.textMuted }}>

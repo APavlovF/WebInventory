@@ -227,6 +227,13 @@ export const en = {
     'export.demoDisabled': 'Report export is disabled in demo mode. Sign in to download reports.',
     'buy.importDemoDisabled': 'Invoice import is disabled in demo mode. Sign in to import invoices.',
     'logo.demoDisabled': 'Logo upload is disabled in demo mode. Sign in to upload your logo.',
+
+    'limits.search': 'Search material or SKU...',
+    'limits.noMatches': 'No material matches your search.',
+
+    'panel.hide': 'Hide',
+    'panel.showSubscribe': 'Show subscription card',
+    'panel.showAdvisor': 'Show advisor',
 } as const;
 
 export type TKey = keyof typeof en;
