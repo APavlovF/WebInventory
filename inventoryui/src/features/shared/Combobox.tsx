@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { inputStyle } from './ModalStyles';
+import { c, alpha } from '../../theme/themes';
 
 export interface ComboOption {
     value: string;   // what is stored when picked
@@ -120,7 +121,7 @@ export default function Combobox({
         }
     };
 
-    const borderColor = invalid ? '#f87171' : 'rgba(20, 184, 166, 0.4)';
+    const borderColor = invalid ? c.danger : alpha('accent', 0.4);
 
     // Where to draw the list: right under the field, or above it when there is no room below
     let listStyle: CSSProperties | null = null;
@@ -135,11 +136,11 @@ export default function Combobox({
             maxHeight: '180px',
             overflowY: 'auto',
             scrollbarWidth: 'thin',
-            scrollbarColor: 'rgba(20, 184, 166, 0.5) #0f172a', // dark theme scrollbar
-            background: '#1e293b',
-            border: '1px solid rgba(20, 184, 166, 0.5)',
+            scrollbarColor: `${alpha('accent', 0.5)} ${c.bgApp}`, // dark theme scrollbar
+            background: c.bgSurface,
+            border: `1px solid ${alpha('accent', 0.5)}`,
             borderRadius: '4px',
-            boxShadow: '0 6px 16px rgba(0,0,0,0.5)',
+            boxShadow: `0 6px 16px ${alpha('overlay', 0.5)}`,
             fontFamily: 'monospace',
             ...(openUp ? { bottom: window.innerHeight - rect.top + 2 } : { top: rect.bottom + 2 }),
         };
@@ -184,12 +185,12 @@ export default function Combobox({
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
                             whiteSpace: 'nowrap',
-                            color: selected ? '#f8fafc' : '#64748b',
+                            color: selected ? c.text : c.textMuted,
                         }}
                     >
                         {selected ? selected.label : placeholder}
                     </span>
-                    <span style={{ color: '#2dd4bf', marginLeft: '8px' }}>▾</span>
+                    <span style={{ color: c.accentBright, marginLeft: '8px' }}>▾</span>
                 </button>
             )}
 
@@ -209,13 +210,13 @@ export default function Combobox({
                                     padding: '8px 10px',
                                     fontSize: '14px',
                                     cursor: o.disabled ? 'not-allowed' : 'pointer',
-                                    color: o.disabled ? '#475569' : o.value === value ? '#2dd4bf' : '#f8fafc',
+                                    color: o.disabled ? c.border : o.value === value ? c.accentBright : c.text,
                                     background:
-                                        i === activeIndex && !o.disabled ? 'rgba(20, 184, 166, 0.15)' : 'transparent',
+                                        i === activeIndex && !o.disabled ? alpha('accent', 0.15) : 'transparent',
                                 }}
                             >
                                 <span>{o.label}</span>
-                                {o.hint && <span style={{ color: '#64748b' }}>{o.hint}</span>}
+                                {o.hint && <span style={{ color: c.textMuted }}>{o.hint}</span>}
                             </div>
                         ))}
                     </div>,

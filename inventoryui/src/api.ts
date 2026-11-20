@@ -18,6 +18,9 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
     if (token) {
         headers.set('Authorization', `Bearer ${token}`);
     }
+    // UI language (see i18n/I18nContext), so the backend can localise errors and exported reports
+    const lang = localStorage.getItem('ui_lang');
+    if (lang) headers.set('Accept-Language', lang);
 
     return fetch(`${BASE_BACKEND_URL}${path}`, { ...init, headers });
 }

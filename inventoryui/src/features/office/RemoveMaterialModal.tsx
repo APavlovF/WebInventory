@@ -13,6 +13,8 @@ import {
     submitBtnStyle,
 } from '../shared/ModalStyles';
 import type { UnitStock } from '../../types/inventory';
+import { c, alpha } from '../../theme/themes';
+import { useI18n } from '../../i18n/I18nContext';
 
 interface RemoveMaterialModalProps {
     isOpen: boolean;
@@ -35,6 +37,7 @@ export default function RemoveMaterialModal({
     onClose,
     onSuccess,
 }: RemoveMaterialModalProps) {
+    const { t } = useI18n();
     const [selectedMaterialId, setSelectedMaterialId] = useState('');
     const [rows, setRows] = useState<RemoveRow[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -99,15 +102,11 @@ export default function RemoveMaterialModal({
 
     const handleSubmit = async () => {
         if (rows.length === 0) {
-            setApiError('Select at least one material.');
+            setApiError(t('rmMat.selectOne'));
             return;
         }
 
-        const confirmed = window.confirm(
-            `Remove ${rows.length} material(s)?\n\n` +
-            `Materials will no longer appear in inventory, reports, or dropdown lists.\n\n` +
-            `Existing products will keep their recipes.`
-        );
+        const confirmed = window.confirm(t('rmMat.confirm', { count: rows.length }));
 
         if (!confirmed) {
             return;
@@ -131,13 +130,13 @@ export default function RemoveMaterialModal({
 
             if (response.status === 401) {
                 throw new Error(
-                    'You are not authorized. Please sign in again.'
+                    t('err.notAuthorized')
                 );
             }
 
             if (!response.ok) {
                 throw new Error(
-                    `Delete failed (${response.status})`
+                    t('common.deleteFailed', { status: response.status })
                 );
             }
 
@@ -147,7 +146,7 @@ export default function RemoveMaterialModal({
         }
         catch (err: any) {
             setApiError(
-                err.message ?? 'Error removing materials.'
+                err.message ?? t('rmMat.errRemoving')
             );
         }
         finally {
@@ -168,11 +167,11 @@ export default function RemoveMaterialModal({
                 <h3
                     style={{
                         margin: '0 0 16px',
-                        color: '#2dd4bf',
+                        color: c.accentBright,
                         textAlign: 'center',
                     }}
                 >
-                    Remove Materials
+                    {t('rmMat.title')}
                 </h3>
 
                 <div
@@ -187,7 +186,7 @@ export default function RemoveMaterialModal({
                         <Combobox
                             value={selectedMaterialId}
                             onChange={setSelectedMaterialId}
-                            placeholder="Search material..."
+                            placeholder={t('rmMat.search')}
                             options={availableMaterials.map(x => ({
                                 value: String(x.id),
                                 label: x.unit.name,
@@ -208,7 +207,7 @@ export default function RemoveMaterialModal({
                         }}
                         onClick={handleAddMaterial}
                     >
-                        + Mark For Removal
+                        {t('common.markForRemoval')}
                     </button>
                 </div>
 
@@ -225,30 +224,30 @@ export default function RemoveMaterialModal({
                                     style={{
                                         textAlign: 'center',
                                         padding: '10px',
-                                        color: '#94a3b8',
+                                        color: c.textMuted,
                                     }}
                                 >
-                                    Material
+                                    {t('common.material')}
                                 </th>
 
                                 <th
                                     style={{
                                         textAlign: 'center',
                                         padding: '10px',
-                                        color: '#94a3b8',
+                                        color: c.textMuted,
                                     }}
                                 >
-                                    SKU
+                                    {t('common.sku')}
                                 </th>
 
                                 <th
                                     style={{
                                         textAlign: 'center',
                                         padding: '10px',
-                                        color: '#94a3b8',
+                                        color: c.textMuted,
                                     }}
                                 >
-                                    Unit
+                                    {t('common.unit')}
                                 </th>
 
                                 <th
@@ -271,7 +270,7 @@ export default function RemoveMaterialModal({
                                         style={{
                                             padding: '10px',
                                             borderTop:
-                                                '1px solid rgba(51,65,85,0.5)',
+                                                `1px solid ${alpha('border', 0.5)}`,
                                         }}
                                     >
                                         {row.name}
@@ -281,7 +280,7 @@ export default function RemoveMaterialModal({
                                         style={{
                                             padding: '10px',
                                             borderTop:
-                                                '1px solid rgba(51,65,85,0.5)',
+                                                `1px solid ${alpha('border', 0.5)}`,
                                         }}
                                     >
                                         {row.sku}
@@ -291,7 +290,7 @@ export default function RemoveMaterialModal({
                                         style={{
                                             padding: '10px',
                                             borderTop:
-                                                '1px solid rgba(51,65,85,0.5)',
+                                                `1px solid ${alpha('border', 0.5)}`,
                                         }}
                                     >
                                         {row.measurement}
@@ -302,7 +301,7 @@ export default function RemoveMaterialModal({
                                             padding: '10px',
                                             textAlign: 'center',
                                             borderTop:
-                                                '1px solid rgba(51,65,85,0.5)',
+                                                `1px solid ${alpha('border', 0.5)}`,
                                         }}
                                     >
                                         <button
@@ -325,10 +324,10 @@ export default function RemoveMaterialModal({
                                         style={{
                                             padding: '24px',
                                             textAlign: 'center',
-                                            color: '#94a3b8',
+                                            color: c.textMuted,
                                         }}
                                     >
-                                        No materials selected.
+                                        {t('rmMat.none')}
                                     </td>
                                 </tr>
                             )}
@@ -340,7 +339,7 @@ export default function RemoveMaterialModal({
                     <div
                         style={{
                             marginTop: '12px',
-                            color: '#f87171',
+                            color: c.danger,
                             fontSize: '13px',
                         }}
                     >
@@ -361,7 +360,7 @@ export default function RemoveMaterialModal({
                         onClick={handleClose}
                         style={cancelBtnStyle}
                     >
-                        Cancel
+                        {t('common.cancel')}
                     </button>
 
                     <button
@@ -381,8 +380,8 @@ export default function RemoveMaterialModal({
                         }}
                     >
                         {isSubmitting
-                            ? 'Removing...'
-                            : 'Remove Materials'}
+                            ? t('common.removing')
+                            : t('rmMat.title')}
                     </button>
                 </div>
             </div>

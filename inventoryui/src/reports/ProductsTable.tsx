@@ -5,6 +5,8 @@
 import { useMemo, useState } from 'react';
 import { apiFetch } from '../api';
 import type { Product, ProductStock } from '../types/inventory';
+import { c, alpha } from '../theme/themes';
+import { useI18n } from '../i18n/I18nContext';
 
 type ExportFormat = 'xlsx' | 'csv' | 'pdf' | 'txt';
 
@@ -35,6 +37,7 @@ function fileNameFrom(response: Response, fallback: string): string {
 }
 
 export default function ProductsTable({ productStocks, products, isLoading = false, error = null, onClose }: ProductsTableProps) {
+    const { t } = useI18n();
     const [exporting, setExporting] = useState<ExportFormat | null>(null);
     const [exportError, setExportError] = useState<string | null>(null);
 
@@ -76,8 +79,8 @@ export default function ProductsTable({ productStocks, products, isLoading = fal
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ format, items: productStocks }),
             });
-            if (response.status === 401) throw new Error('Session expired. Please sign in again.');
-            if (!response.ok) throw new Error(`Export failed (${response.status})`);
+            if (response.status === 401) throw new Error(t('err.sessionExpired'));
+            if (!response.ok) throw new Error(t('export.failedStatus', { status: response.status }));
 
             const blob = await response.blob();
             const url = URL.createObjectURL(blob);
@@ -87,7 +90,7 @@ export default function ProductsTable({ productStocks, products, isLoading = fal
             a.click();
             URL.revokeObjectURL(url);
         } catch (err: any) {
-            setExportError(err.message || 'Export failed.');
+            setExportError(err.message || t('export.failed'));
         } finally {
             setExporting(null);
         }
@@ -96,29 +99,29 @@ export default function ProductsTable({ productStocks, products, isLoading = fal
     const canExport = rows.length > 0 && exporting === null;
 
     const exportButtons: { format: ExportFormat; label: string; title: string; color: string }[] = [
-        { format: 'xlsx', label: 'XLSX', title: 'Export to Excel', color: '#22c55e' },
-        { format: 'csv', label: 'CSV', title: 'Export to CSV', color: '#38bdf8' },
-        { format: 'pdf', label: 'PDF', title: 'Export to PDF', color: '#fb7185' },
-        { format: 'txt', label: 'TXT', title: 'Export to text file', color: '#cbd5e1' },
+        { format: 'xlsx', label: 'XLSX', title: t('export.excel'), color: c.success },
+        { format: 'csv', label: 'CSV', title: t('export.csv'), color: c.info },
+        { format: 'pdf', label: 'PDF', title: t('export.pdf'), color: c.danger },
+        { format: 'txt', label: 'TXT', title: t('export.txt'), color: c.textStrong },
     ];
 
     const th: React.CSSProperties = {
         padding: '12px 16px',
         fontSize: '13px',
         fontWeight: 600,
-        color: '#94a3b8',
-        borderBottom: '1px solid #334155',
+        color: c.textMuted,
+        borderBottom: `1px solid ${c.border}`,
         textAlign: 'left',
         position: 'sticky',
         top: 0,
-        backgroundColor: '#1e293b',
+        backgroundColor: c.bgSurface,
     };
     const td: React.CSSProperties = {
         textAlign: 'left',
         padding: '12px 16px',
         fontSize: '14px',
-        color: '#e2e8f0',
-        borderBottom: '1px solid rgba(51, 65, 85, 0.6)',
+        color: c.textStrong,
+        borderBottom: `1px solid ${alpha('border', 0.6)}`,
     };
     const num: React.CSSProperties = { textAlign: 'right', fontVariantNumeric: 'tabular-nums' };
 
@@ -133,26 +136,26 @@ export default function ProductsTable({ productStocks, products, isLoading = fal
                     overflow: 'auto',
                     paddingTop: '48px',
                     scrollbarWidth: 'thin',
-                    scrollbarColor: 'rgba(20, 184, 166, 0.5) #0f172a', // same dark theme scrollbar as the modals
+                    scrollbarColor: `${alpha('accent', 0.5)} ${c.bgApp}`, // same dark theme scrollbar as the modals
                 }}
             >
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                         <tr>
-                            <th style={th}>Name</th>
-                            <th style={th}>SKU</th>
-                            <th style={{ ...th, ...num }}>Quantity</th>
-                            <th style={{ ...th, ...num }}>Wholesale price</th>
-                            <th style={{ ...th, ...num }}>Retail price</th>
-                            <th style={{ ...th, ...num }}>Total wholesale</th>
-                            <th style={{ ...th, ...num }}>Total retail</th>
+                            <th style={th}>{t('common.name')}</th>
+                            <th style={th}>{t('common.sku')}</th>
+                            <th style={{ ...th, ...num }}>{t('common.quantity')}</th>
+                            <th style={{ ...th, ...num }}>{t('prod.wholesalePrice')}</th>
+                            <th style={{ ...th, ...num }}>{t('prod.retailPrice')}</th>
+                            <th style={{ ...th, ...num }}>{t('prod.totalWholesale')}</th>
+                            <th style={{ ...th, ...num }}>{t('prod.totalRetail')}</th>
                         </tr>
                     </thead>
                     <tbody>
                         {rows.map((r) => (
                             <tr key={r.id}>
                                 <td style={td}>{r.name}</td>
-                                <td style={{ ...td, color: '#94a3b8' }}>{r.sku}</td>
+                                <td style={{ ...td, color: c.textMuted }}>{r.sku}</td>
                                 <td style={{ ...td, ...num }}>{qty(r.quantity)}</td>
                                 <td style={{ ...td, ...num }}>{money(r.wholesale)}</td>
                                 <td style={{ ...td, ...num }}>{money(r.retail)}</td>
@@ -162,8 +165,8 @@ export default function ProductsTable({ productStocks, products, isLoading = fal
                         ))}
                         {rows.length === 0 && (
                             <tr>
-                                <td colSpan={7} style={{ ...td, textAlign: 'center', color: '#94a3b8', padding: '32px' }}>
-                                    {isLoading ? 'Loading products…' : 'No products in stock yet.'}
+                                <td colSpan={7} style={{ ...td, textAlign: 'center', color: c.textMuted, padding: '32px' }}>
+                                    {isLoading ? t('prod.loading') : t('prod.empty')}
                                 </td>
                             </tr>
                         )}
@@ -179,8 +182,8 @@ export default function ProductsTable({ productStocks, products, isLoading = fal
                     justifyContent: 'space-between',
                     gap: '16px',
                     padding: '10px 16px',
-                    borderTop: '1px solid #334155',
-                    backgroundColor: '#1e293b',
+                    borderTop: `1px solid ${c.border}`,
+                    backgroundColor: c.bgSurface,
                 }}
             >
                 <div style={{ display: 'flex', gap: '8px' }}>
@@ -194,7 +197,7 @@ export default function ProductsTable({ productStocks, products, isLoading = fal
                             onClick={() => exportReport(b.format)}
                             style={{
                                 background: 'transparent',
-                                border: '1px solid #334155',
+                                border: `1px solid ${c.border}`,
                                 borderRadius: '8px',
                                 padding: '4px',
                                 cursor: canExport ? 'pointer' : 'not-allowed',
@@ -208,19 +211,20 @@ export default function ProductsTable({ productStocks, products, isLoading = fal
                     ))}
                 </div>
 
-                {message && <span style={{ color: '#fb7185', fontSize: '13px' }}>{message}</span>}
+                {message && <span style={{ color: c.danger, fontSize: '13px' }}>{message}</span>}
 
-                <div style={{ fontSize: '15px', fontWeight: 600, color: '#e2e8f0', fontVariantNumeric: 'tabular-nums' }}>
-                    Total wholesale/retail:{' '}
-                    <span style={{ color: '#2dd4bf' }}>{money(totalWholesale)}</span>
+                <div style={{ fontSize: '15px', fontWeight: 600, color: c.textStrong, fontVariantNumeric: 'tabular-nums' }}>
+                    {t('common.wholesaleRetailTotal')}{' '}
+                    <span style={{ color: c.accentBright }}>{money(totalWholesale)}</span>
                     {' / '}
-                    <span style={{ color: '#38bdf8' }}>{money(totalRetail)}</span>
+                    <span style={{ color: c.info }}>{money(totalRetail)}</span>
                 </div>
             </div>
             {onClose && (
                 <button
                     type="button"
                     onClick={onClose}
+                    aria-label={t('common.close')}
                     style={{
                         position: 'absolute',
                         top: '8px',
@@ -228,9 +232,9 @@ export default function ProductsTable({ productStocks, products, isLoading = fal
                         width: '32px',
                         height: '32px',
                         borderRadius: '6px',
-                        border: '1px solid #334155',
-                        background: '#1e293b',
-                        color: '#94a3b8',
+                        border: `1px solid ${c.border}`,
+                        background: c.bgSurface,
+                        color: c.textMuted,
                         cursor: 'pointer',
                         fontFamily: 'monospace',
                         fontSize: '18px',

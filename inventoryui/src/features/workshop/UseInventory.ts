@@ -1,18 +1,40 @@
-// src/features/workshop/useInventory.ts
+// src/features/workshop/UseInventory.ts
 // Loads the user's inventory from the API into React state (our "cache").
 // Call refresh() whenever the database changed (after adding a product type or producing a batch).
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch } from '../../api';
+import { useI18n } from '../../i18n/I18nContext';
 import type { Commission, Product, ProductStock, Unit, UnitStock } from '../../types/inventory';
+
+// The request helper throws this; the hook turns it into a translated message
+class ApiError extends Error {
+    kind: 'unauthorized' | 'failed';
+    path: string;
+    status: number;
+    constructor(kind: 'unauthorized' | 'failed', path: string, status: number) {
+        super(kind);
+        this.kind = kind;
+        this.path = path;
+        this.status = status;
+    }
+}
 
 async function postJson<T>(path: string): Promise<T> {
     const response = await apiFetch(path, { method: 'POST' });
-    if (response.status === 401) throw new Error('Session expired. Please sign in again.');
-    if (!response.ok) throw new Error(`Request failed: ${path} (${response.status})`);
+    if (response.status === 401) throw new ApiError('unauthorized', path, 401);
+    if (!response.ok) throw new ApiError('failed', path, response.status);
     return response.json();
 }
 
 export function useInventory(isLoggedIn: boolean) {
+    const { t } = useI18n();
+    // refresh() must not change when the language changes (it would reload the data),
+    // so the current translator is read through a ref
+    const tRef = useRef(t);
+    useEffect(() => {
+        tRef.current = t;
+    }, [t]);
+
     const [products, setProducts] = useState<Product[]>([]);           // product types with their Items
     const [productStocks, setProductStocks] = useState<ProductStock[]>([]); // how many of each product exist
     const [unitStocks, setUnitStocks] = useState<UnitStock[]>([]);     // how much of each material exists
@@ -36,7 +58,16 @@ export function useInventory(isLoggedIn: boolean) {
             setUnitStocks(uStocks);
             setCommissions(comms);
         } catch (err: any) {
-            setError(err.message || 'Failed to load inventory.');
+            const tr = tRef.current;
+            if (err instanceof ApiError) {
+                setError(
+                    err.kind === 'unauthorized'
+                        ? tr('err.sessionExpired')
+                        : tr('err.requestFailed', { path: err.path, status: err.status })
+                );
+            } else {
+                setError(err.message || tr('err.loadInventory'));
+            }
         } finally {
             setIsLoading(false);
         }

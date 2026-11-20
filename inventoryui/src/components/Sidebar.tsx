@@ -1,6 +1,16 @@
 // src/components/Sidebar.tsx
+import PreferencesBar from './PreferencesBar';
+import { useI18n } from '../i18n/I18nContext';
+import type { TKey } from '../i18n/en';
+import { c, alpha } from '../theme/themes';
 
 type TabType = 'Overview' | 'Inventory' | 'Products';
+
+const menuLabelKey: Record<TabType, TKey> = {
+    Overview: 'nav.overview',
+    Inventory: 'nav.inventory',
+    Products: 'nav.products',
+};
 
 interface SidebarProps {
     activeTab: TabType;
@@ -10,15 +20,16 @@ interface SidebarProps {
     onLogoutClick: () => void;
 }
 
-export default function Sidebar({ activeTab, setActiveTab, isAuthenticated, onLoginClick, onLogoutClick }: SidebarProps) {    
+export default function Sidebar({ activeTab, setActiveTab, isAuthenticated, onLoginClick, onLogoutClick }: SidebarProps) {
+    const { t } = useI18n();
     const menuItems: TabType[] = ['Overview', 'Inventory', 'Products'];
 
     return (
         <aside style={{
             width: '240px',
             height: '100%',
-            backgroundColor: '#1e293b',
-            borderRight: '1px solid #334155',
+            backgroundColor: c.bgSurface,
+            borderRight: `1px solid ${c.border}`,
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
@@ -45,33 +56,34 @@ export default function Sidebar({ activeTab, setActiveTab, isAuthenticated, onLo
                                     fontWeight: '600',
                                     border: 'none',
                                     cursor: 'pointer',
-                                    color: isActive ? '#14b8a6' : '#cbd5e1',
-                                    backgroundColor: isActive ? 'rgba(20, 184, 166, 0.15)' : 'transparent',
-                                    borderLeft: isActive ? '4px solid #14b8a6' : '4px solid transparent',
+                                    color: isActive ? c.accent : c.textStrong,
+                                    backgroundColor: isActive ? alpha('accent', 0.15) : 'transparent',
+                                    borderLeft: isActive ? `4px solid ${c.accent}` : '4px solid transparent',
                                     transition: 'all 0.2s ease',
                                 }}
                                 onMouseEnter={(e) => {
-                                    if (!isActive) e.currentTarget.style.backgroundColor = 'rgba(51, 65, 85, 0.5)';
+                                    if (!isActive) e.currentTarget.style.backgroundColor = alpha('border', 0.5);
                                 }}
                                 onMouseLeave={(e) => {
                                     if (!isActive) e.currentTarget.style.backgroundColor = 'transparent';
                                 }}
                             >
-                                {item}
+                                {t(menuLabelKey[item])}
                             </button>
                         );
                     })}
                 </nav>
             </div>
 
-            <div style={{ paddingTop: '16px', borderTop: '1px solid #334155' }}>
+            <div style={{ paddingTop: '16px', borderTop: `1px solid ${c.border}`, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <PreferencesBar />
                 {isAuthenticated ? (
-                    <button onClick={onLogoutClick} style={{ width: '100%', padding: '10px', backgroundColor: 'rgba(225, 29, 72, 0.2)', color: '#fb7185', border: '1px solid rgba(225, 29, 72, 0.4)', borderRadius: '6px', fontSize: '12px', fontFamily: 'monospace', cursor: 'pointer' }}>
-                        Disconnect Session
+                    <button onClick={onLogoutClick} style={{ width: '100%', padding: '10px', backgroundColor: alpha('danger', 0.2), color: c.danger, border: `1px solid ${alpha('danger', 0.4)}`, borderRadius: '6px', fontSize: '12px', fontFamily: 'monospace', cursor: 'pointer' }}>
+                        {t('sidebar.disconnect')}
                     </button>
                 ) : (
-                    <button onClick={onLoginClick} style={{ width: '100%', padding: '12px', backgroundColor: '#14b8a6', color: '#0f172a', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', fontFamily: 'monospace', cursor: 'pointer', boxShadow: '0 4px 12px rgba(20, 184, 166, 0.2)' }}>
-                        Sign In / Authorize
+                    <button onClick={onLoginClick} style={{ width: '100%', padding: '12px', backgroundColor: c.accent, color: c.onAccent, border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', fontFamily: 'monospace', cursor: 'pointer', boxShadow: `0 4px 12px ${alpha('accent', 0.2)}` }}>
+                        {t('sidebar.signIn')}
                     </button>
                 )}
             </div>
