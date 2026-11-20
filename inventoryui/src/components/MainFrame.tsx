@@ -251,15 +251,12 @@ export default function MainFrame() {
                                 title={t('logo.uploadHover')}
                                 style={{
                                     width: '48px',
-                                    height: '48px',
-                                    borderRadius: '8px',
+                                    height: '48px',                                    
                                     overflow: 'hidden',
                                     cursor: 'pointer',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    justifyContent: 'center',
-                                    border: `1px dashed ${c.borderSubtle}`,
-                                    backgroundColor: alpha('bgSurface', 0.3),
+                                    justifyContent: 'center',                                                                        
                                     opacity: isUploadingLogo ? 0.5 : 1,
                                     transition: 'border-color 0.2s, transform 0.15s',
                                 }}
