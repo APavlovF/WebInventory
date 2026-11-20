@@ -209,4 +209,10 @@ export const es: Record<TKey, string> = {
     'warehouse.semaphore.reasonEmpty': 'Sin stock (Alerta mínima: {{low}})',
     'warehouse.semaphore.reasonLow': 'Stock bajo (≤ {{low}})',
     'warehouse.semaphore.reasonMax': 'Supera la alerta máxima ({{max}})',
+
+    'logo.uploadHover': 'Subir tu logotipo',
+    'logo.alt': 'Logotipo de la empresa',
+    'logo.errorType': 'Por favor, sube una imagen PNG.',
+    'logo.errorSize': 'El tamaño del archivo debe ser de 1 MB o menos.',
+    'logo.errorUpload': 'Error al subir el logotipo.',
 };

@@ -208,6 +208,12 @@ export const en = {
     'warehouse.semaphore.reasonEmpty': 'Empty stock (Low alert set to {{low}})',
     'warehouse.semaphore.reasonLow': 'Low stock (≤ {{low}})',
     'warehouse.semaphore.reasonMax': 'Exceeds max alert ({{max}})',
+
+    'logo.uploadHover': 'Upload your logo',
+    'logo.alt': 'Company Logo',
+    'logo.errorType': 'Please upload a PNG picture.',
+    'logo.errorSize': 'File size must be 1 MB or less.',
+    'logo.errorUpload': 'Failed to upload logo.',
 } as const;
 
 export type TKey = keyof typeof en;

@@ -209,4 +209,10 @@ export const ru: Record<TKey, string> = {
     'warehouse.semaphore.reasonEmpty': 'Нет в наличии (Мин. порог: {{low}})',
     'warehouse.semaphore.reasonLow': 'Низкий запас (≤ {{low}})',
     'warehouse.semaphore.reasonMax': 'Превышен макс. порог ({{max}})',
+
+    'logo.uploadHover': 'Загрузить логотип',
+    'logo.alt': 'Логотип компании',
+    'logo.errorType': 'Пожалуйста, загрузите изображение в формате PNG.',
+    'logo.errorSize': 'Размер файла не должен превышать 1 МБ.',
+    'logo.errorUpload': 'Не удалось загрузить логотип.',
 };

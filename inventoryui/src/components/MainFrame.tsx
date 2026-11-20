@@ -1,5 +1,5 @@
 // src/components/MainFrame.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Sidebar from './Sidebar';
 import MapCanvas from '../features/map/MapCanvas';
 import ScribeAdvisor from './ScribeAdvisor';
@@ -11,9 +11,12 @@ import { InventoryContext } from '../data/InventoryContext';
 import { useI18n } from '../i18n/I18nContext';
 import type { TKey } from '../i18n/en';
 import { c, alpha } from '../theme/themes';
+import { apiFetch } from '../api';
 
 const EXPIRATION_TIME_MS = 5 * 60 * 1000;
 const SUPPORT_EMAIL = 'pavlovfontanka@gmail.com';
+const DEFAULT_LOGO = './logo.png';
+const MAX_LOGO_SIZE_BYTES = 1 * 1024 * 1024; // 1 MB
 
 type TabType = 'Overview' | 'Inventory' | 'Products';
 
@@ -42,7 +45,36 @@ export default function MainFrame() {
     const [viewportKey, setViewportKey] = useState<TKey>('nav.overview');
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
     const [showLoginModal, setShowLoginModal] = useState<boolean>(false);
+
+    // Logo state & hidden file input ref
+    const [logoUrl, setLogoUrl] = useState<string>(DEFAULT_LOGO);
+    const [isUploadingLogo, setIsUploadingLogo] = useState<boolean>(false);
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+
     const isFormView = isAuthenticated && activeTab !== 'Overview';
+
+    // Load user's saved logo URL upon login
+    const fetchUserLogo = async () => {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            setLogoUrl(DEFAULT_LOGO);
+            return;
+        }
+
+        try {
+            const response = await apiFetch(`/api/logo/get`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setLogoUrl(data.logoUrl || DEFAULT_LOGO);
+            } else {
+                setLogoUrl(DEFAULT_LOGO);
+            }
+        } catch {
+            setLogoUrl(DEFAULT_LOGO);
+        }
+    };
 
     useEffect(() => {
         const checkSessionExpiration = () => {
@@ -61,10 +93,74 @@ export default function MainFrame() {
         return () => clearInterval(interval);
     }, []);
 
+    useEffect(() => {
+        if (isAuthenticated) {
+            fetchUserLogo();
+        } else {
+            setLogoUrl(DEFAULT_LOGO);
+        }
+    }, [isAuthenticated]);
+
     const handleLogout = () => {
         localStorage.removeItem("authToken");
         localStorage.removeItem("session_login_time");
         setIsAuthenticated(false);
+        setLogoUrl(DEFAULT_LOGO);
+    };
+
+    const handleLogoClick = () => {
+        if (!isAuthenticated) {
+            setShowLoginModal(true);
+            return;
+        }
+        fileInputRef.current?.click();
+    };
+
+    const handleLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Reset input so re-selecting the same file still triggers onChange
+        e.target.value = '';
+
+        if (file.type !== 'image/png') {
+            alert(t('logo.errorType'));
+            return;
+        }
+
+        if (file.size > MAX_LOGO_SIZE_BYTES) {
+            alert(t('logo.errorSize'));
+            return;
+        }
+
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        setIsUploadingLogo(true);
+        try {
+            const response = await apiFetch(`/api/logo/upload`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error(t('logo.errorUpload'));
+            }
+
+            const data = await response.json();
+            setLogoUrl(data.logoUrl ? `${data.logoUrl}?t=${Date.now()}` : DEFAULT_LOGO);
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : t('logo.errorUpload');
+            alert(message);
+        } finally {
+            setIsUploadingLogo(false);
+        }
     };
 
     // Updates both the active sidebar tab and the header title
@@ -132,21 +228,82 @@ export default function MainFrame() {
                     boxSizing: 'border-box',
                     overflow: 'hidden'
                 }}>
-                    <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: `1px solid ${c.borderSubtle}`, paddingBottom: '12px' }}>
-                        <h1 style={{ fontSize: '20px', fontWeight: 600, color: c.textStrong, margin: 0 }}>
+                    {/* 3-column grid keeps the title truly centered horizontally above the canvas */}
+                    <header style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr auto 1fr',
+                        alignItems: 'center',
+                        marginBottom: '16px',
+                        borderBottom: `1px solid ${c.borderSubtle}`,
+                        paddingBottom: '12px'
+                    }}>
+                        {/* Upper-left corner: Logo */}
+                        <div style={{ justifySelf: 'start', display: 'flex', alignItems: 'center' }}>
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/png"
+                                onChange={handleLogoFileChange}
+                                style={{ display: 'none' }}
+                            />
+                            <div
+                                onClick={handleLogoClick}
+                                title={t('logo.uploadHover')}
+                                style={{
+                                    width: '48px',
+                                    height: '48px',
+                                    borderRadius: '8px',
+                                    overflow: 'hidden',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    border: `1px dashed ${c.borderSubtle}`,
+                                    backgroundColor: alpha('bgSurface', 0.3),
+                                    opacity: isUploadingLogo ? 0.5 : 1,
+                                    transition: 'border-color 0.2s, transform 0.15s',
+                                }}
+                                onMouseEnter={(e) => (e.currentTarget.style.borderColor = c.accent)}
+                                onMouseLeave={(e) => (e.currentTarget.style.borderColor = c.borderSubtle)}
+                            >
+                                <img
+                                    src={logoUrl}
+                                    alt={t('logo.alt')}
+                                    onError={() => setLogoUrl(DEFAULT_LOGO)}
+                                    style={{
+                                        width: '100%',
+                                        height: '100%',
+                                        objectFit: 'contain'
+                                    }}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Horizontal center: Simulated Preview / Active Tab Title */}
+                        <h1 style={{
+                            fontSize: '20px',
+                            fontWeight: 600,
+                            color: c.textStrong,
+                            margin: 0,
+                            textAlign: 'center'
+                        }}>
                             {!isAuthenticated && `${t('main.simulatedViewport')} - `}{t(viewportKey)}
                         </h1>
-                        <span style={{
-                            fontSize: '12px',
-                            fontFamily: 'monospace',
-                            padding: '4px 12px',
-                            borderRadius: '9999px',
-                            border: `1px solid ${alpha(isAuthenticated ? 'accent' : 'warning', 0.4)}`,
-                            color: isAuthenticated ? c.accent : c.warning,
-                            backgroundColor: alpha(isAuthenticated ? 'accent' : 'warning', 0.05)
-                        }}>
-                            {isAuthenticated ? t('main.systemConnected') : t('main.guestMode')}
-                        </span>
+
+                        {/* Upper-right corner: Connection status badge */}
+                        <div style={{ justifySelf: 'end' }}>
+                            <span style={{
+                                fontSize: '12px',
+                                fontFamily: 'monospace',
+                                padding: '4px 12px',
+                                borderRadius: '9999px',
+                                border: `1px solid ${alpha(isAuthenticated ? 'accent' : 'warning', 0.4)}`,
+                                color: isAuthenticated ? c.accent : c.warning,
+                                backgroundColor: alpha(isAuthenticated ? 'accent' : 'warning', 0.05)
+                            }}>
+                                {isAuthenticated ? t('main.systemConnected') : t('main.guestMode')}
+                            </span>
+                        </div>
                     </header>
 
                     <div style={{ position: 'relative', flex: 1, width: '100%', borderRadius: '12px', overflow: 'hidden', border: `1px solid ${c.borderSubtle}`, backgroundColor: alpha('bgSurface', 0.2) }}>
