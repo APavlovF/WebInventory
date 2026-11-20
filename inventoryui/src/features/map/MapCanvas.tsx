@@ -12,7 +12,8 @@ import MaterialLimitsModal from '../warehouse/MaterialLimitsModal';
 import ProductionMapModal from '../warehouse/ProductionMapModal';
 import RemoveMaterialModal from '../office/RemoveMaterialModal';
 import RemoveProductModal from '../office/RemoveProductModal';
-const MAX_STOCK = 100;      // your max stock limit
+import WarehouseSemaphore from '../warehouse/WarehouseSemaphore';
+const MAX_STOCK = 10000;      // your max stock limit
 
 interface MapCanvasProps {
     onBuildingClick: (name: string) => void;
@@ -245,6 +246,7 @@ export default function MapCanvas({ onBuildingClick, isLoggedIn }: MapCanvasProp
                 onClick={() => onBuildingClick('Warehouse')}
                 onSetupStockLimits={() => setActiveModal('materialLimits')}
                 onProductionMap={() => setActiveModal('productionMap')} />
+            <WarehouseSemaphore top={`${warehousePt.y - 120}px`} left={`${warehousePt.x + 65}px`} unitStocks={unitStocks} productStocks={productStocks} />
             <BuildingNode name="Office" top={`${officePt.y - 75}px`} left={`${officePt.x - 65}px`} imgSrc="map-office.png"
                 onImportInvoice={() => { setAutoImport(true); setActiveModal('buyMaterials') }}
                 onRemoveMaterial={() => setActiveModal('removeMaterial')}

@@ -192,6 +192,22 @@ export const en = {
     'rmProd.errRemoving': 'Error removing products.',
     'prodMap.title': 'Production Map',
     'prodMap.total': 'TOTAL',
+	
+	'warehouse.semaphore.tooltip': 'Click to inspect Warehouse stock status',
+    'warehouse.semaphore.title': 'Warehouse Stock Semaphore',
+    'warehouse.semaphore.redLabel': 'Red',
+    'warehouse.semaphore.redDesc': 'Stock is 0 while a low-stock alert is configured.',
+    'warehouse.semaphore.yellowLabel': 'Yellow',
+    'warehouse.semaphore.yellowDesc': 'Stock is at/below low alert or exceeds a custom max alert.',
+    'warehouse.semaphore.greenLabel': 'Green',
+    'warehouse.semaphore.greenDesc': 'All materials and products are within limits.',
+    'warehouse.semaphore.allHealthy': 'All inventory levels are within configured limits.',
+    'warehouse.semaphore.categoryMaterial': 'Material',
+    'warehouse.semaphore.categoryProduct': 'Product',
+    'warehouse.semaphore.qty': 'Qty: {{quantity}}',
+    'warehouse.semaphore.reasonEmpty': 'Empty stock (Low alert set to {{low}})',
+    'warehouse.semaphore.reasonLow': 'Low stock (≤ {{low}})',
+    'warehouse.semaphore.reasonMax': 'Exceeds max alert ({{max}})',
 } as const;
 
 export type TKey = keyof typeof en;
