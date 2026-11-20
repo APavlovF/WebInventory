@@ -215,4 +215,17 @@ export const es: Record<TKey, string> = {
     'logo.errorType': 'Por favor, sube una imagen PNG.',
     'logo.errorSize': 'El tamaño del archivo debe ser de 1 MB o menos.',
     'logo.errorUpload': 'Error al subir el logotipo.',
+
+    'building.addProductType': 'Añadir tipo de producto',
+    'building.produceBatch': 'Producir lote',
+    'building.buyMaterials': 'Comprar materiales',
+    'building.sellProducts': 'Vender productos',
+    'building.setupLimits': 'Configurar límites de stock',
+    'building.importInvoice': 'Importar factura',
+    'building.missingFile': 'Archivo no encontrado',
+    'main.demoMode': 'Modo demostración',
+    'main.demoHint': 'Sus datos permanecen solo en esta pestaña del navegador y se pierden al cerrarla. Inicie sesión para trabajar con la base de datos.',
+    'export.demoDisabled': 'La exportación de informes está desactivada en el modo demostración. Inicie sesión para descargar informes.',
+    'buy.importDemoDisabled': 'La importación de facturas está desactivada en el modo demostración. Inicie sesión para importar facturas.',
+    'logo.demoDisabled': 'La subida del logotipo está desactivada en el modo demostración. Inicie sesión para subir su logotipo.',
 };

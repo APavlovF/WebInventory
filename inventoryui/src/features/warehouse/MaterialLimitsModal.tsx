@@ -23,7 +23,6 @@ import { useI18n } from '../../i18n/I18nContext';
 
 interface MaterialLimitsModalProps {
     isOpen: boolean;
-    isAuthenticated: boolean;
     unitStocks: UnitStock[];
     onClose: () => void;
     onSuccess: () => void;
@@ -37,28 +36,8 @@ interface LimitRow {
     initialMax: number;
 }
 
-const DEMO_STOCKS: UnitStock[] = [
-    {
-        id: -1,
-        lowStockAlert: 10,
-        maxStockAlert: 100,
-        price: 50,
-        quantity: 45,
-        unit: { id: -1, name: 'Steel Sheets', measurement: 'kg', sku: 'DEMO-STL' },
-    },
-    {
-        id: -2,
-        lowStockAlert: 5,
-        maxStockAlert: NO_MAX_LIMIT,
-        price: 100,
-        quantity: 20,
-        unit: { id: -2, name: 'Oak Planks', measurement: 'pcs', sku: 'DEMO-OAK' },
-    },
-];
-
 export default function MaterialLimitsModal({
     isOpen,
-    isAuthenticated,
     unitStocks,
     onClose,
     onSuccess,
@@ -68,12 +47,7 @@ export default function MaterialLimitsModal({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [apiError, setApiError] = useState<string | null>(null);
 
-    const activeStocks = useMemo(() => {
-        if (!isAuthenticated) {
-            return DEMO_STOCKS;
-        }
-        return Array.isArray(unitStocks) ? unitStocks : [];
-    }, [isAuthenticated, unitStocks]);
+    const activeStocks = useMemo(() => (Array.isArray(unitStocks) ? unitStocks : []), [unitStocks]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -132,7 +106,7 @@ export default function MaterialLimitsModal({
         rows.length > 0 &&
         rowInfos.every((r) => r.minValid && r.maxValid && !r.maxBelowMin);
 
-    const canSave = isAuthenticated && isFormValid && hasChanges && !isSubmitting;
+    const canSave = isFormValid && hasChanges && !isSubmitting;
 
     if (!isOpen) {
         return null;
@@ -209,22 +183,6 @@ export default function MaterialLimitsModal({
                     {t('limits.title')}
                 </h3>
 
-                {!isAuthenticated && (
-                    <div
-                        style={{
-                            backgroundColor: alpha('warning', 0.12),
-                            border: `1px solid ${alpha('warning', 0.4)}`,
-                            color: c.warning,
-                            fontSize: '12px',
-                            padding: '8px 12px',
-                            borderRadius: '6px',
-                            marginBottom: '12px',
-                            textAlign: 'center',
-                        }}
-                    >
-                        {t('limits.demoBanner')}
-                    </div>
-                )}
 
                 {activeStocks.length === 0 ? (
                     <div

@@ -215,4 +215,17 @@ export const pt: Record<TKey, string> = {
     'logo.errorType': 'Por favor, envie uma imagem PNG.',
     'logo.errorSize': 'O tamanho do arquivo deve ser de 1 MB ou menos.',
     'logo.errorUpload': 'Falha ao enviar o logotipo.',
+
+    'building.addProductType': 'Adicionar tipo de produto',
+    'building.produceBatch': 'Produzir lote',
+    'building.buyMaterials': 'Comprar materiais',
+    'building.sellProducts': 'Vender produtos',
+    'building.setupLimits': 'Configurar limites de estoque',
+    'building.importInvoice': 'Importar nota fiscal',
+    'building.missingFile': 'Arquivo ausente',
+    'main.demoMode': 'Modo demonstração',
+    'main.demoHint': 'Seus dados ficam apenas nesta aba do navegador e são perdidos ao fechá-la. Entre para trabalhar com o banco de dados.',
+    'export.demoDisabled': 'A exportação de relatórios está desativada no modo demonstração. Entre para baixar relatórios.',
+    'buy.importDemoDisabled': 'A importação de notas fiscais está desativada no modo demonstração. Entre para importar notas fiscais.',
+    'logo.demoDisabled': 'O envio do logotipo está desativado no modo demonstração. Entre para enviar seu logotipo.',
 };

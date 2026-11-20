@@ -1,7 +1,7 @@
 // src/features/market/BuyMaterialsModal.tsx
 import { useState, useMemo, useRef, useEffect } from 'react';
 import type { SyntheticEvent, ChangeEvent } from 'react';
-import { apiFetch } from '../../api';
+import { apiFetch, isDemoMode } from '../../api';
 import Combobox from '../shared/Combobox';
 import {
     overlayStyle,
@@ -87,14 +87,26 @@ export default function BuyMaterialsModal({
     const [isImporting, setIsImporting] = useState(false);
     const [importStatus, setImportStatus] = useState<string>(t('buy.preparing'));
     const [apiError, setApiError] = useState<string | null>(null);
+    const [notice, setNotice] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
+
+    // Invoice parsing runs on the server, which demo mode never talks to: explain instead of failing
+    const openFilePicker = () => {
+        if (isDemoMode()) {
+            setNotice(t('buy.importDemoDisabled'));
+            return;
+        }
+        setNotice(null);
+        fileInputRef.current?.click();
+    };
     useEffect(() => {
         if (isOpen && autoOpenImport) {
             setTimeout(() => {
-                fileInputRef.current?.click();
+                openFilePicker();
             }, 100);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, autoOpenImport]);
 
     // Known materials by lower-case name
@@ -162,6 +174,7 @@ export default function BuyMaterialsModal({
     const resetForm = () => {
         setRows([newRow()]);
         setApiError(null);
+        setNotice(null);
     };
 
     const handleClose = () => {
@@ -382,7 +395,7 @@ export default function BuyMaterialsModal({
                         <button
                             type="button"
                             disabled={isImporting || isSubmitting}
-                            onClick={() => fileInputRef.current?.click()}
+                            onClick={openFilePicker}
                             style={{
                                 ...addBtnStyle,
                                 marginTop: 0,
@@ -557,6 +570,10 @@ export default function BuyMaterialsModal({
                             {t('buy.total')}: <span style={{ color: c.accentBright }}>${totalCost.toFixed(2)}</span>
                         </div>
                     </div>
+
+                    {notice && (
+                        <div style={{ color: c.warning, fontSize: '13px', marginTop: '12px' }}>{notice}</div>
+                    )}
 
                     {apiError && (
                         <div style={{ color: c.danger, fontSize: '13px', marginTop: '12px' }}>{apiError}</div>

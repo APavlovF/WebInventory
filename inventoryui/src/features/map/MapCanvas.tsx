@@ -17,10 +17,9 @@ const MAX_STOCK = 10000;      // your max stock limit
 
 interface MapCanvasProps {
     onBuildingClick: (name: string) => void;
-    isLoggedIn: boolean;
 }
 
-export default function MapCanvas({ onBuildingClick, isLoggedIn }: MapCanvasProps) {
+export default function MapCanvas({ onBuildingClick }: MapCanvasProps) {
     const [dimensions, setDimensions] = useState({ width: 1200, height: 800 });
     const [autoImport, setAutoImport] = useState(false);
     const [activeModal, setActiveModal] = useState<
@@ -299,7 +298,6 @@ export default function MapCanvas({ onBuildingClick, isLoggedIn }: MapCanvasProp
             {/* Warehouse forms */}
             <MaterialLimitsModal
                 isOpen={activeModal === 'materialLimits'}
-                isAuthenticated={isLoggedIn}
                 unitStocks={unitStocks}
                 onClose={() => setActiveModal(null)}
                 onSuccess={() => refresh()}

@@ -1,5 +1,6 @@
 // src/features/workshop/UseInventory.ts
-// Loads the user's inventory from the API into React state (our "cache").
+// Loads the inventory into React state (our "cache"). Signed in: from the C# API. Not signed in (demo mode):
+// from the in-memory demo backend. Both go through apiFetch(), so this hook does not care which one it is.
 // Call refresh() whenever the database changed (after adding a product type or producing a batch).
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch } from '../../api';
@@ -40,9 +41,11 @@ export function useInventory(isLoggedIn: boolean) {
     const [unitStocks, setUnitStocks] = useState<UnitStock[]>([]);     // how much of each material exists
     const [commissions, setCommissions] = useState<Commission[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const requestId = useRef(0); // only the newest load may write its result
     const [error, setError] = useState<string | null>(null);
 
     const refresh = useCallback(async () => {
+        const id = ++requestId.current;
         setIsLoading(true);
         setError(null);
         try {
@@ -53,11 +56,13 @@ export function useInventory(isLoggedIn: boolean) {
                 postJson<UnitStock[]>('/api/materials/fetch'),
                 postJson<Commission[]>('/api/office/fetch'),
             ]);
+            if (id !== requestId.current) return; // a newer load (e.g. after login/logout) replaced this one
             setProducts(prods);
             setProductStocks(pStocks);
             setUnitStocks(uStocks);
             setCommissions(comms);
         } catch (err: any) {
+            if (id !== requestId.current) return;
             const tr = tRef.current;
             if (err instanceof ApiError) {
                 setError(
@@ -69,20 +74,18 @@ export function useInventory(isLoggedIn: boolean) {
                 setError(err.message || tr('err.loadInventory'));
             }
         } finally {
-            setIsLoading(false);
+            if (id === requestId.current) setIsLoading(false);
         }
     }, []);
 
-    // Load when the user logs in, clear when they log out
+    // Signing in or out switches between two different worlds (database / demo data):
+    // drop what is on screen, then load the right one
     useEffect(() => {
-        if (isLoggedIn) {
-            refresh();
-        } else {
-            setProducts([]);
-            setProductStocks([]);
-            setUnitStocks([]);
-            setCommissions([]);
-        }
+        setProducts([]);
+        setProductStocks([]);
+        setUnitStocks([]);
+        setCommissions([]);
+        refresh();
     }, [isLoggedIn, refresh]);
 
     // The list of materials for the "Add product type" dropdown (unique units from the stock list)

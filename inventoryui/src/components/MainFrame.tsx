@@ -20,7 +20,7 @@ const MAX_LOGO_SIZE_BYTES = 1 * 1024 * 1024; // 1 MB
 
 type TabType = 'Overview' | 'Inventory' | 'Products';
 
-// Building -> form tab (same order as the form files)
+// Building -> screen (Office and Market only have action buttons, no screen of their own)
 const buildingToTab: Record<string, TabType> = {
     Warehouse: 'Inventory',
     Workshop: 'Products',
@@ -32,18 +32,23 @@ const tabTitleKey: Record<TabType, TKey> = {
     Inventory: 'nav.inventory',
     Products: 'nav.products',
 };
-const buildingTitleKey: Record<string, TKey> = {
-    Warehouse: 'building.warehouse',
-    Office: 'building.office',
-    Workshop: 'building.workshop',
-    Market: 'building.market',
+
+// A saved login that has not expired yet (checked once at start so the first screen is already right)
+const hasValidSession = (): boolean => {
+    const loginTime = localStorage.getItem('session_login_time');
+    return (
+        !!loginTime &&
+        !!localStorage.getItem('authToken') &&
+        new Date().getTime() - parseInt(loginTime, 10) <= EXPIRATION_TIME_MS
+    );
 };
 
 export default function MainFrame() {
     const { t } = useI18n();
     const [activeTab, setActiveTab] = useState<TabType>('Overview');
     const [viewportKey, setViewportKey] = useState<TKey>('nav.overview');
-    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+    // Signed in = real data from the database. Not signed in = demo mode (data kept in this browser tab only)
+    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(hasValidSession);
     const [showLoginModal, setShowLoginModal] = useState<boolean>(false);
 
     // Logo state & hidden file input ref
@@ -51,7 +56,7 @@ export default function MainFrame() {
     const [isUploadingLogo, setIsUploadingLogo] = useState<boolean>(false);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-    const isFormView = isAuthenticated && activeTab !== 'Overview';
+    const isFormView = activeTab !== 'Overview';
 
     // Load user's saved logo URL upon login
     const fetchUserLogo = async () => {
@@ -74,6 +79,13 @@ export default function MainFrame() {
         } catch {
             setLogoUrl(DEFAULT_LOGO);
         }
+    };
+
+    const handleLogout = () => {
+        localStorage.removeItem("authToken");
+        localStorage.removeItem("session_login_time");
+        setIsAuthenticated(false);
+        setLogoUrl(DEFAULT_LOGO);
     };
 
     useEffect(() => {
@@ -101,16 +113,10 @@ export default function MainFrame() {
         }
     }, [isAuthenticated]);
 
-    const handleLogout = () => {
-        localStorage.removeItem("authToken");
-        localStorage.removeItem("session_login_time");
-        setIsAuthenticated(false);
-        setLogoUrl(DEFAULT_LOGO);
-    };
-
     const handleLogoClick = () => {
+        // The logo is stored on the server, which demo mode never talks to: explain instead of failing
         if (!isAuthenticated) {
-            setShowLoginModal(true);
+            alert(t('logo.demoDisabled'));
             return;
         }
         fileInputRef.current?.click();
@@ -169,27 +175,22 @@ export default function MainFrame() {
         setViewportKey(tabTitleKey[tab]);
     };
 
-    // Logged in: building opens its form. Demo mode: only the header title changes.
+    // A building with a screen opens it (same in demo mode and signed in)
     const handleBuildingClick = (buildingName: string) => {
-        if (isAuthenticated) {
-            handleTabChange(buildingToTab[buildingName]);
-        } else {
-            setViewportKey(buildingTitleKey[buildingName] ?? 'nav.overview');
-        }
+        const tab = buildingToTab[buildingName];
+        if (tab) handleTabChange(tab);
     };
 
     const inventory = useInventory(isAuthenticated);
     const { unitStocks, products, productStocks, isLoading, error } = inventory;
 
-    // Logged in + a form tab selected -> show the form, otherwise the map
+    // A screen tab is selected -> show it, otherwise the map
     const renderViewport = () => {
-        if (isAuthenticated) {
-            switch (activeTab) {
-                case 'Inventory': return <InventoryTable unitStocks={unitStocks} isLoading={isLoading} error={error} onClose={() => handleTabChange('Overview')} />;
-                case 'Products': return <ProductsTable productStocks={productStocks} products={products} isLoading={isLoading} error={error} onClose={() => handleTabChange('Overview')} />;
-            }
+        switch (activeTab) {
+            case 'Inventory': return <InventoryTable unitStocks={unitStocks} isLoading={isLoading} error={error} onClose={() => handleTabChange('Overview')} />;
+            case 'Products': return <ProductsTable productStocks={productStocks} products={products} isLoading={isLoading} error={error} onClose={() => handleTabChange('Overview')} />;
+            default: return <MapCanvas onBuildingClick={handleBuildingClick} />;
         }
-        return <MapCanvas onBuildingClick={handleBuildingClick} isLoggedIn={isAuthenticated} />;
     };
 
     // The promo text has an {email} placeholder, which is rendered as a mailto link
@@ -248,15 +249,15 @@ export default function MainFrame() {
                             />
                             <div
                                 onClick={handleLogoClick}
-                                title={t('logo.uploadHover')}
+                                title={isAuthenticated ? t('logo.uploadHover') : t('logo.demoDisabled')}
                                 style={{
                                     width: '48px',
-                                    height: '48px',                                    
+                                    height: '48px',
                                     overflow: 'hidden',
                                     cursor: 'pointer',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    justifyContent: 'center',                                                                        
+                                    justifyContent: 'center',
                                     opacity: isUploadingLogo ? 0.5 : 1,
                                     transition: 'border-color 0.2s, transform 0.15s',
                                 }}
@@ -276,7 +277,7 @@ export default function MainFrame() {
                             </div>
                         </div>
 
-                        {/* Horizontal center: Simulated Preview / Active Tab Title */}
+                        {/* Horizontal center: Active Tab Title */}
                         <h1 style={{
                             fontSize: '20px',
                             fontWeight: 600,
@@ -284,21 +285,25 @@ export default function MainFrame() {
                             margin: 0,
                             textAlign: 'center'
                         }}>
-                            {!isAuthenticated && `${t('main.simulatedViewport')} - `}{t(viewportKey)}
+                            {t(viewportKey)}
                         </h1>
 
                         {/* Upper-right corner: Connection status badge */}
                         <div style={{ justifySelf: 'end' }}>
-                            <span style={{
-                                fontSize: '12px',
-                                fontFamily: 'monospace',
-                                padding: '4px 12px',
-                                borderRadius: '9999px',
-                                border: `1px solid ${alpha(isAuthenticated ? 'accent' : 'warning', 0.4)}`,
-                                color: isAuthenticated ? c.accent : c.warning,
-                                backgroundColor: alpha(isAuthenticated ? 'accent' : 'warning', 0.05)
-                            }}>
-                                {isAuthenticated ? t('main.systemConnected') : t('main.guestMode')}
+                            <span
+                                title={isAuthenticated ? undefined : t('main.demoHint')}
+                                style={{
+                                    fontSize: '12px',
+                                    fontFamily: 'monospace',
+                                    padding: '4px 12px',
+                                    borderRadius: '9999px',
+                                    border: `1px solid ${alpha(isAuthenticated ? 'accent' : 'warning', 0.4)}`,
+                                    color: isAuthenticated ? c.accent : c.warning,
+                                    backgroundColor: alpha(isAuthenticated ? 'accent' : 'warning', 0.05),
+                                    cursor: isAuthenticated ? 'default' : 'help'
+                                }}
+                            >
+                                {isAuthenticated ? t('main.systemConnected') : t('main.demoMode')}
                             </span>
                         </div>
                     </header>

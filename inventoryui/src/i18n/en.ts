@@ -214,6 +214,19 @@ export const en = {
     'logo.errorType': 'Please upload a PNG picture.',
     'logo.errorSize': 'File size must be 1 MB or less.',
     'logo.errorUpload': 'Failed to upload logo.',
+
+    'building.addProductType': 'Add product type',
+    'building.produceBatch': 'Produce batch',
+    'building.buyMaterials': 'Buy materials',
+    'building.sellProducts': 'Sell products',
+    'building.setupLimits': 'Setup stock limits',
+    'building.importInvoice': 'Import invoice',
+    'building.missingFile': 'Missing File',
+    'main.demoMode': 'Demo Mode',
+    'main.demoHint': 'Your data stays in this browser tab and is lost when you close it. Sign in to work with the database.',
+    'export.demoDisabled': 'Report export is disabled in demo mode. Sign in to download reports.',
+    'buy.importDemoDisabled': 'Invoice import is disabled in demo mode. Sign in to import invoices.',
+    'logo.demoDisabled': 'Logo upload is disabled in demo mode. Sign in to upload your logo.',
 } as const;
 
 export type TKey = keyof typeof en;

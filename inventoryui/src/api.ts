@@ -1,6 +1,8 @@
 // src/api.ts
 // One place for the backend URL and for sending the login token with every request.
 
+import { demoFetch } from './demo/demoApi';
+
 export const BASE_BACKEND_URL = import.meta.env.DEV
     ? 'https://localhost:7045'
     : 'https://webinventory-ia5j.onrender.com';
@@ -8,7 +10,13 @@ export const BASE_BACKEND_URL = import.meta.env.DEV
 // Same fetch() you know, but: prefixes the backend URL and adds the
 // "Authorization: Bearer <token>" header that [Authorize] endpoints expect.
 // The token is the one LoginModal saves in localStorage ("authToken").
+// No login token = demo mode: requests are answered by an in-memory copy of the backend (see demo/)
+// instead of the real server, so nothing ever reaches the database.
+export const isDemoMode = (): boolean => !localStorage.getItem('authToken');
+
 export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
+    if (isDemoMode()) return demoFetch(path, init);
+
     const token = localStorage.getItem('authToken');
 
     const headers = new Headers(init.headers);
