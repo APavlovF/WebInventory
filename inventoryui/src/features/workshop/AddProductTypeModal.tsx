@@ -17,6 +17,8 @@ import {
 } from '../shared/ModalStyles';
 import type { Product, Unit, UnitStock } from '../../types/inventory';
 import '../shared/modalForm.css';
+import { c as clr, alpha } from '../../theme/themes';
+import { useI18n } from '../../i18n/I18nContext';
 
 export interface Commission {
     id?: number;
@@ -80,6 +82,7 @@ export default function AddProductTypeModal({
     onClose,
     onSuccess,
 }: AddProductTypeModalProps) {
+    const { t } = useI18n();
     const [productName, setProductName] = useState('');
     const [sku, setSku] = useState('');
     const [markupPercent, setMarkupPercent] = useState('0');
@@ -299,10 +302,10 @@ export default function AddProductTypeModal({
             });
 
             if (response.status === 401) {
-                throw new Error('You are not authorized. Please sign in again.');
+                throw new Error(t('err.notAuthorized'));
             }
             if (!response.ok) {
-                throw new Error(`Failed to save product (${response.status})`);
+                throw new Error(t('addType.errFailed', { status: response.status }));
             }
 
             const savedProduct: Product = await response.json();
@@ -311,7 +314,7 @@ export default function AddProductTypeModal({
             onSuccess(savedProduct);
             onClose();
         } catch (err: any) {
-            setApiError(err.message || 'Error saving product to database.');
+            setApiError(err.message || t('addType.errSaving'));
         } finally {
             setIsSubmitting(false);
         }
@@ -320,20 +323,20 @@ export default function AddProductTypeModal({
     return (
         <div style={overlayStyle}>
             <div className="modal-form" style={modalStyle}>
-                <h3 style={{ margin: '0 0 16px 0', color: '#2dd4bf', textAlign: 'center' }}>
-                    Add Product Type
+                <h3 style={{ margin: '0 0 16px 0', color: clr.accentBright, textAlign: 'center' }}>
+                    {t('addType.title')}
                 </h3>
 
                 <form onSubmit={handleSubmit}>
                     {/* Row 1: Product Name + SKU in one line */}
                     <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
                         <div style={{ flex: 2 }}>
-                            <label style={labelStyle}>Product Name</label>
+                            <label style={labelStyle}>{t('addType.productName')}</label>
                             <input
                                 type="text"
                                 value={productName}
                                 onChange={(e) => setProductName(e.target.value)}
-                                placeholder="e.g., Wooden Chair"
+                                placeholder={t('addType.placeholderName')}
                                 maxLength={1000}
                                 style={inputStyle}
                                 required
@@ -341,12 +344,12 @@ export default function AddProductTypeModal({
                         </div>
 
                         <div style={{ flex: 1 }}>
-                            <label style={labelStyle}>SKU</label>
+                            <label style={labelStyle}>{t('common.sku')}</label>
                             <input
                                 type="text"
                                 value={sku}
                                 onChange={(e) => setSku(e.target.value)}
-                                placeholder="e.g., CHAIR-OAK-001"
+                                placeholder={t('addType.placeholderSku')}
                                 maxLength={200}
                                 style={inputStyle}
                                 required
@@ -357,7 +360,7 @@ export default function AddProductTypeModal({
                     {/* Row 2: Markup (%), Work Cost, Retail Rate (%) */}
                     <div style={{ display: 'flex', gap: '10px', marginBottom: '14px' }}>
                         <div style={{ flex: 1 }}>
-                            <label style={labelStyle}>Markup (%)</label>
+                            <label style={labelStyle}>{t('addType.markup')}</label>
                             <input
                                 type="number"
                                 step="any"
@@ -366,14 +369,14 @@ export default function AddProductTypeModal({
                                 placeholder="0"
                                 style={{
                                     ...inputStyle,
-                                    borderColor: !isMarkupValid ? '#f87171' : 'rgba(20, 184, 166, 0.4)',
+                                    borderColor: !isMarkupValid ? clr.danger : alpha('accent', 0.4),
                                 }}
                                 required
                             />
                         </div>
 
                         <div style={{ flex: 1 }}>
-                            <label style={labelStyle}>Work Cost</label>
+                            <label style={labelStyle}>{t('addType.workCost')}</label>
                             <input
                                 type="number"
                                 min="0"
@@ -383,14 +386,14 @@ export default function AddProductTypeModal({
                                 placeholder="0.00"
                                 style={{
                                     ...inputStyle,
-                                    borderColor: !isWorkCostValid ? '#f87171' : 'rgba(20, 184, 166, 0.4)',
+                                    borderColor: !isWorkCostValid ? clr.danger : alpha('accent', 0.4),
                                 }}
                                 required
                             />
                         </div>
 
                         <div style={{ flex: 1 }}>
-                            <label style={labelStyle}>Retail Rate (%)</label>
+                            <label style={labelStyle}>{t('addType.retailRate')}</label>
                             <input
                                 type="number"
                                 step="any"
@@ -399,7 +402,7 @@ export default function AddProductTypeModal({
                                 placeholder="0"
                                 style={{
                                     ...inputStyle,
-                                    borderColor: !isRetailValid ? '#f87171' : 'rgba(20, 184, 166, 0.4)',
+                                    borderColor: !isRetailValid ? clr.danger : alpha('accent', 0.4),
                                 }}
                                 required
                             />
@@ -408,12 +411,12 @@ export default function AddProductTypeModal({
 
                     {/* Materials Section */}
                     <div style={{ marginBottom: '14px' }}>
-                        <label style={labelStyle}>Materials (quantity per 1 product)</label>
+                        <label style={labelStyle}>{t('addType.materials')}</label>
 
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '4px' }}>
-                            <span style={{ ...headerLabelStyle, flex: 2 }}>Material</span>
-                            <span style={{ ...headerLabelStyle, flex: 1 }}>Qty</span>
-                            <span style={{ ...headerLabelStyle, flex: 1 }}>Unit Price</span>
+                            <span style={{ ...headerLabelStyle, flex: 2 }}>{t('common.material')}</span>
+                            <span style={{ ...headerLabelStyle, flex: 1 }}>{t('addType.qty')}</span>
+                            <span style={{ ...headerLabelStyle, flex: 1 }}>{t('addType.unitPrice')}</span>
                             <span style={{ width: '36px', flexShrink: 0 }} />
                         </div>
 
@@ -433,7 +436,7 @@ export default function AddProductTypeModal({
                                             <Combobox
                                                 value={row.unitId}
                                                 onChange={(v) => handleRowChange(row.rowId, 'unitId', v)}
-                                                placeholder="-- Select Material --"
+                                                placeholder={t('addType.selectMaterial')}
                                                 style={{ flex: 2 }}
                                                 options={materials.map((m) => {
                                                     const price = unitPrices.get(m.id);
@@ -453,7 +456,7 @@ export default function AddProductTypeModal({
                                                 step="any"
                                                 value={row.quantity}
                                                 onChange={(e) => handleRowChange(row.rowId, 'quantity', e.target.value)}
-                                                placeholder="Qty"
+                                                placeholder={t('addType.qty')}
                                                 style={{ ...inputStyle, flex: 1 }}
                                             />
 
@@ -467,11 +470,11 @@ export default function AddProductTypeModal({
                                                         ? `$${unitPrice.toFixed(2)}`
                                                         : '$0.00'
                                                 }
-                                                placeholder="Price"
+                                                placeholder={t('common.price')}
                                                 title={
                                                     rowTotal !== null
-                                                        ? `Line cost: $${rowTotal.toFixed(2)}`
-                                                        : 'Material unit price from stock'
+                                                        ? `${t('addType.lineCost')}: $${rowTotal.toFixed(2)}`
+                                                        : t('addType.unitPriceTitle')
                                                 }
                                                 style={{
                                                     ...inputStyle,
@@ -488,15 +491,15 @@ export default function AddProductTypeModal({
                                                     ...removeBtnStyle,
                                                     visibility: rows.length > 1 ? 'visible' : 'hidden',
                                                 }}
-                                                title="Remove material"
+                                                title={t('common.removeMaterial')}
                                             >
                                                 ✕
                                             </button>
                                         </div>
 
                                         {rowTotal !== null && (
-                                            <div style={{ color: '#94a3b8', fontSize: '11px', marginTop: '2px', paddingLeft: '4px' }}>
-                                                Line cost: ${rowTotal.toFixed(2)}
+                                            <div style={{ color: clr.textMuted, fontSize: '11px', marginTop: '2px', paddingLeft: '4px' }}>
+                                                {t('addType.lineCost')}: ${rowTotal.toFixed(2)}
                                             </div>
                                         )}
                                     </div>
@@ -515,18 +518,18 @@ export default function AddProductTypeModal({
                                     cursor: rows.length >= materials.length ? 'not-allowed' : 'pointer',
                                 }}
                             >
-                                + Add Material
+                                {t('common.addMaterial')}
                             </button>
 
-                            <div style={{ color: '#cbd5e1', fontSize: '13px', marginRight: '44px' }}>
-                                Materials Cost: <strong style={{ color: '#2dd4bf' }}>${materialsTotalCost.toFixed(2)}</strong>
+                            <div style={{ color: clr.textStrong, fontSize: '13px', marginRight: '44px' }}>
+                                {t('addType.materialsCost')}: <strong style={{ color: clr.accentBright }}>${materialsTotalCost.toFixed(2)}</strong>
                             </div>
                         </div>
                     </div>
 
                     {/* Wholesale Commissions Section */}
                     <div style={{ marginBottom: '14px' }}>
-                        <label style={labelStyle}>Commissions and Taxes (optional)</label>
+                        <label style={labelStyle}>{t('addType.commissions')}</label>
 
                         {commissionRows.length > 0 && (
                             <div style={{ ...scrollAreaStyle, maxHeight: '130px' }}>
@@ -543,7 +546,7 @@ export default function AddProductTypeModal({
                                                 <Combobox
                                                     value={cRow.name}
                                                     onChange={(v) => handleCommissionChange(cRow.rowId, 'name', v)}
-                                                    placeholder="Commission name"
+                                                    placeholder={t('addType.commissionName')}
                                                     maxLength={200}
                                                     allowCustom
                                                     invalid={isDuplicate}
@@ -570,19 +573,19 @@ export default function AddProductTypeModal({
                                                     type="button"
                                                     onClick={() => handleRemoveCommission(cRow.rowId)}
                                                     style={removeBtnStyle}
-                                                    title="Remove commission"
+                                                    title={t('addType.removeCommission')}
                                                 >
                                                     ✕
                                                 </button>
                                             </div>
 
                                             {isDuplicate ? (
-                                                <div style={{ color: '#f87171', fontSize: '11px', marginTop: '2px' }}>
-                                                    Duplicate commission name
+                                                <div style={{ color: clr.danger, fontSize: '11px', marginTop: '2px' }}>
+                                                    {t('addType.duplicateCommission')}
                                                 </div>
                                             ) : isNew ? (
-                                                <div style={{ color: '#94a3b8', fontSize: '11px', marginTop: '2px' }}>
-                                                    New commission "{cRow.name.trim()}" will be saved
+                                                <div style={{ color: clr.textMuted, fontSize: '11px', marginTop: '2px' }}>
+                                                    {t('addType.newCommission', { name: cRow.name.trim() })}
                                                 </div>
                                             ) : null}
                                         </div>
@@ -592,7 +595,7 @@ export default function AddProductTypeModal({
                         )}
 
                         <button type="button" onClick={handleAddCommission} style={addBtnStyle}>
-                            + Add Commission
+                            {t('addType.addCommission')}
                         </button>
                     </div>
 
@@ -604,35 +607,35 @@ export default function AddProductTypeModal({
                             alignItems: 'center',
                             padding: '10px 12px',
                             borderRadius: '8px',
-                            backgroundColor: 'rgba(15, 23, 42, 0.6)',
-                            border: '1px solid rgba(20, 184, 166, 0.3)',
+                            backgroundColor: alpha('bgApp', 0.6),
+                            border: `1px solid ${alpha('accent', 0.3)}`,
                             marginBottom: '12px',
                         }}
                     >
-                        <div style={{ color: '#e2e8f0', fontSize: '14px' }}>
-                            Wholesale Price:{' '}
-                            <strong style={{ color: '#2dd4bf', fontSize: '16px' }}>
+                        <div style={{ color: clr.textStrong, fontSize: '14px' }}>
+                            {t('addType.wholesalePrice')}{' '}
+                            <strong style={{ color: clr.accentBright, fontSize: '16px' }}>
                                 ${wholesalePrice.toFixed(2)}
                             </strong>
                         </div>
 
-                        <div style={{ color: '#e2e8f0', fontSize: '14px' }}>
-                            Retail Price:{' '}
-                            <strong style={{ color: '#38bdf8', fontSize: '16px' }}>
+                        <div style={{ color: clr.textStrong, fontSize: '14px' }}>
+                            {t('addType.retailPrice')}{' '}
+                            <strong style={{ color: clr.info, fontSize: '16px' }}>
                                 ${retailPrice.toFixed(2)}
                             </strong>
                         </div>
                     </div>
 
                     {apiError && (
-                        <div style={{ color: '#f87171', fontSize: '13px', marginBottom: '12px' }}>
+                        <div style={{ color: clr.danger, fontSize: '13px', marginBottom: '12px' }}>
                             {apiError}
                         </div>
                     )}
 
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px' }}>
                         <button type="button" onClick={handleClose} style={cancelBtnStyle}>
-                            Cancel
+                            {t('common.cancel')}
                         </button>
                         <button
                             type="submit"
@@ -643,7 +646,7 @@ export default function AddProductTypeModal({
                                 cursor: !isFormValid || isSubmitting ? 'not-allowed' : 'pointer',
                             }}
                         >
-                            {isSubmitting ? 'Saving...' : 'Save Product Type'}
+                            {isSubmitting ? t('common.saving') : t('addType.save')}
                         </button>
                     </div>
                 </form>

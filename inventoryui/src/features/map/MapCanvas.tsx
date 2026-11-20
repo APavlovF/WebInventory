@@ -2,7 +2,8 @@
 import { useState, useEffect } from 'react';
 import BuildingNode from './BuildingNode';
 import MapVehicles from './MapVehicles';
-import { useInventory } from '../workshop/UseInventory';
+import { useInventoryStore } from '../../data/InventoryContext';
+import { c, alpha } from '../../theme/themes';
 import AddProductTypeModal from '../workshop/AddProductTypeModal';
 import ProduceBatchModal from '../workshop/ProduceBatchModal';
 import BuyMaterialsModal from '../market/BuyMaterialsModal';
@@ -11,19 +12,18 @@ import MaterialLimitsModal from '../warehouse/MaterialLimitsModal';
 import ProductionMapModal from '../warehouse/ProductionMapModal';
 import RemoveMaterialModal from '../office/RemoveMaterialModal';
 import RemoveProductModal from '../office/RemoveProductModal';
-
-const MAX_STOCK = 100;      // your max stock limit
+import WarehouseSemaphore from '../warehouse/WarehouseSemaphore';
+const MAX_STOCK = 10000;      // your max stock limit
 
 interface MapCanvasProps {
     onBuildingClick: (name: string) => void;
-    isLoggedIn: boolean;
 }
 
-export default function MapCanvas({ onBuildingClick, isLoggedIn }: MapCanvasProps) {
+export default function MapCanvas({ onBuildingClick }: MapCanvasProps) {
     const [dimensions, setDimensions] = useState({ width: 1200, height: 800 });
     const [autoImport, setAutoImport] = useState(false);
     const [activeModal, setActiveModal] = useState<
-          'addProduct'
+        'addProduct'
         | 'produceBatch'
         | 'buyMaterials'
         | 'sellProducts'
@@ -31,8 +31,8 @@ export default function MapCanvas({ onBuildingClick, isLoggedIn }: MapCanvasProp
         | 'productionMap'
         | 'removeMaterial'
         | 'removeProduct'
-        |  null > (null);
-    const { products, productStocks, unitStocks, units, commissions, refresh } = useInventory(isLoggedIn);
+        | null>(null);
+    const { products, productStocks, unitStocks, units, commissions, refresh } = useInventoryStore(); // shared store, no second fetch
 
     useEffect(() => {
         const handleResize = () => {
@@ -87,7 +87,7 @@ export default function MapCanvas({ onBuildingClick, isLoggedIn }: MapCanvasProp
                 const pt = projectCoordinate(c, r);
                 d += `${c === minIndex ? 'M' : 'L'} ${pt.x} ${pt.y}`;
             }
-            paths.push(<path key={`h-${r}`} d={d} fill="none" stroke="rgba(20, 184, 166, 0.22)" strokeWidth="1" />);
+            paths.push(<path key={`h-${r}`} d={d} fill="none" stroke={alpha('accent', 0.22)} strokeWidth="1" />);
         }
         return paths;
     };
@@ -100,7 +100,7 @@ export default function MapCanvas({ onBuildingClick, isLoggedIn }: MapCanvasProp
                 const pt = projectCoordinate(c, r);
                 d += `${r === minIndex ? 'M' : 'L'} ${pt.x} ${pt.y}`;
             }
-            paths.push(<path key={`v-${c}`} d={d} fill="none" stroke="rgba(20, 184, 166, 0.22)" strokeWidth="1" />);
+            paths.push(<path key={`v-${c}`} d={d} fill="none" stroke={alpha('accent', 0.22)} strokeWidth="1" />);
         }
         return paths;
     };
@@ -197,24 +197,24 @@ export default function MapCanvas({ onBuildingClick, isLoggedIn }: MapCanvasProp
         return points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
     };
 
-    const renderTerrainRoad = (d: string, rgbColor: string) => (
+    const renderTerrainRoad = (d: string, color: 'accent' | 'info') => (
         <g strokeLinecap="round" strokeLinejoin="round" fill="none">
             {/* 1. Wider outer solid road borders */}
             <path
                 d={d}
-                stroke={`rgba(${rgbColor}, 0.5)`}
+                stroke={alpha(color, 0.5)}
                 strokeWidth="12"
             />
             {/* 2. Wide dark asphalt road bed */}
             <path
                 d={d}
-                stroke="#070a13"
+                stroke={c.bgMap}
                 strokeWidth="9.5"
             />
             {/* 3. Dashed center lane divider */}
             <path
                 d={d}
-                stroke={`rgba(${rgbColor}, 0.75)`}
+                stroke={alpha(color, 0.75)}
                 strokeWidth="1.5"
                 strokeDasharray="6, 6"
             />
@@ -224,14 +224,14 @@ export default function MapCanvas({ onBuildingClick, isLoggedIn }: MapCanvasProp
     return (
         <div
             id="map-container"
-            style={{ position: 'absolute', width: '100%', height: '100%', top: 0, left: 0, backgroundColor: '#070a13', overflow: 'hidden' }}
+            style={{ position: 'absolute', width: '100%', height: '100%', top: 0, left: 0, backgroundColor: c.bgMap, overflow: 'hidden' }}
         >
             <svg style={{ position: 'absolute', width: '100%', height: '100%', top: 0, left: 0, pointerEvents: 'none' }}>
                 {drawHorizontalLines()}
                 {drawVerticalLines()}
 
-                {renderTerrainRoad(generateSvgRoadPath(truckRoutePoints), '20, 184, 166')}
-                {renderTerrainRoad(generateSvgRoadPath(carCircuitPoints), '14, 165, 233')}
+                {renderTerrainRoad(generateSvgRoadPath(truckRoutePoints), 'accent')}
+                {renderTerrainRoad(generateSvgRoadPath(carCircuitPoints), 'info')}
             </svg>
 
             {/* Dynamic 4-Way Isometric Vehicles */}
@@ -245,6 +245,7 @@ export default function MapCanvas({ onBuildingClick, isLoggedIn }: MapCanvasProp
                 onClick={() => onBuildingClick('Warehouse')}
                 onSetupStockLimits={() => setActiveModal('materialLimits')}
                 onProductionMap={() => setActiveModal('productionMap')} />
+            <WarehouseSemaphore top={`${warehousePt.y - 120}px`} left={`${warehousePt.x + 65}px`} unitStocks={unitStocks} productStocks={productStocks} />
             <BuildingNode name="Office" top={`${officePt.y - 75}px`} left={`${officePt.x - 65}px`} imgSrc="map-office.png"
                 onImportInvoice={() => { setAutoImport(true); setActiveModal('buyMaterials') }}
                 onRemoveMaterial={() => setActiveModal('removeMaterial')}
@@ -297,7 +298,6 @@ export default function MapCanvas({ onBuildingClick, isLoggedIn }: MapCanvasProp
             {/* Warehouse forms */}
             <MaterialLimitsModal
                 isOpen={activeModal === 'materialLimits'}
-                isAuthenticated={isLoggedIn}
                 unitStocks={unitStocks}
                 onClose={() => setActiveModal(null)}
                 onSuccess={() => refresh()}

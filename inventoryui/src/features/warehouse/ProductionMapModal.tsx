@@ -1,4 +1,6 @@
 import type { Product } from '../../types/inventory';
+import { c, alpha } from '../../theme/themes';
+import { useI18n } from '../../i18n/I18nContext';
 
 interface Props {
     isOpen: boolean;
@@ -11,6 +13,7 @@ export default function ProductionMapModal({
     products,
     onClose,
 }: Props) {
+    const { t } = useI18n();
     if (!isOpen) return null;
 
     const materials = Array.from(
@@ -36,20 +39,20 @@ export default function ProductionMapModal({
         padding: '12px 16px',
         fontSize: '13px',
         fontWeight: 600,
-        color: '#94a3b8',
-        borderBottom: '1px solid #334155',
+        color: c.textMuted,
+        borderBottom: `1px solid ${c.border}`,
         textAlign: 'left',
         position: 'sticky',
         top: 0,
-        backgroundColor: '#1e293b',
+        backgroundColor: c.bgSurface,
     };
 
     const td: React.CSSProperties = {
         textAlign: 'left',
         padding: '12px 16px',
         fontSize: '14px',
-        color: '#e2e8f0',
-        borderBottom: '1px solid rgba(51, 65, 85, 0.6)',
+        color: c.textStrong,
+        borderBottom: `1px solid ${alpha('border', 0.6)}`,
     };
 
     return (
@@ -58,7 +61,7 @@ export default function ProductionMapModal({
                 position: 'absolute',
                 inset: 0,
                 zIndex: 2000,
-                background: '#0f172a',
+                background: c.bgApp,
                 fontFamily: 'monospace',
                 display: 'flex',
                 flexDirection: 'column',                
@@ -79,16 +82,17 @@ export default function ProductionMapModal({
                 <h2
                     style={{
                         margin: 0,
-                        color: '#2dd4bf',
+                        color: c.accentBright,
                         fontSize: '18px',
                         lineHeight: '32px',
                     }}
                 >
-                    Production Map
+                    {t('prodMap.title')}
                 </h2>
                 <button
                     type="button"
                     onClick={onClose}
+                    aria-label={t('common.close')}
                     style={{
                         position: 'absolute',
                         top: '12px',
@@ -96,9 +100,9 @@ export default function ProductionMapModal({
                         width: '32px',
                         height: '32px',
                         borderRadius: '6px',
-                        border: '1px solid #334155',
-                        background: '#1e293b',
-                        color: '#94a3b8',
+                        border: `1px solid ${c.border}`,
+                        background: c.bgSurface,
+                        color: c.textMuted,
                         cursor: 'pointer',
                         fontFamily: 'monospace',
                         fontSize: '18px',
@@ -126,7 +130,7 @@ export default function ProductionMapModal({
                 >
                     <thead>
                         <tr>
-                            <th style={th}>Product</th>
+                            <th style={th}>{t('common.product')}</th>
 
                             {materials.map(material => (
                                 <th
@@ -168,10 +172,10 @@ export default function ProductionMapModal({
                             style={{
                                 fontWeight: 'bold',
                                 background:
-                                    'rgba(45,212,191,0.1)',
+                                    alpha('accentBright', 0.1),
                             }}
                         >
-                            <td style={td}>TOTAL</td>
+                            <td style={td}>{t('prodMap.total')}</td>
 
                             {materials.map(material => (
                                 <td

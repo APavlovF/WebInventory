@@ -1,5 +1,5 @@
 // src/components/MainFrame.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Sidebar from './Sidebar';
 import MapCanvas from '../features/map/MapCanvas';
 import ScribeAdvisor from './ScribeAdvisor';
@@ -7,23 +7,86 @@ import LoginModal from './LoginModal';
 import InventoryTable from '../reports/InventoryTable';
 import ProductsTable from '../reports/ProductsTable';
 import { useInventory } from '../features/workshop/UseInventory';
+import { InventoryContext } from '../data/InventoryContext';
+import { useI18n } from '../i18n/I18nContext';
+import type { TKey } from '../i18n/en';
+import { c, alpha } from '../theme/themes';
+import { apiFetch } from '../api';
 
 const EXPIRATION_TIME_MS = 5 * 60 * 1000;
+const SUPPORT_EMAIL = 'pavlovfontanka@gmail.com';
+const DEFAULT_LOGO = './logo.png';
+const MAX_LOGO_SIZE_BYTES = 1 * 1024 * 1024; // 1 MB
 
 type TabType = 'Overview' | 'Inventory' | 'Products';
 
-// Building -> form tab (same order as the form files)
+// Building -> screen (Office and Market only have action buttons, no screen of their own)
 const buildingToTab: Record<string, TabType> = {
     Warehouse: 'Inventory',
-    Workshop: 'Products',    
+    Workshop: 'Products',
+};
+
+// The header title is stored as a translation key, so it follows the language switch
+const tabTitleKey: Record<TabType, TKey> = {
+    Overview: 'nav.overview',
+    Inventory: 'nav.inventory',
+    Products: 'nav.products',
+};
+
+// A saved login that has not expired yet (checked once at start so the first screen is already right)
+const hasValidSession = (): boolean => {
+    const loginTime = localStorage.getItem('session_login_time');
+    return (
+        !!loginTime &&
+        !!localStorage.getItem('authToken') &&
+        new Date().getTime() - parseInt(loginTime, 10) <= EXPIRATION_TIME_MS
+    );
 };
 
 export default function MainFrame() {
+    const { t } = useI18n();
     const [activeTab, setActiveTab] = useState<TabType>('Overview');
-    const [viewportTitle, setViewportTitle] = useState<string>('Overview');
-    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+    const [viewportKey, setViewportKey] = useState<TKey>('nav.overview');
+    // Signed in = real data from the database. Not signed in = demo mode (data kept in this browser tab only)
+    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(hasValidSession);
     const [showLoginModal, setShowLoginModal] = useState<boolean>(false);
-    const isFormView = isAuthenticated && activeTab !== 'Overview';
+
+    // Logo state & hidden file input ref
+    const [logoUrl, setLogoUrl] = useState<string>(DEFAULT_LOGO);
+    const [isUploadingLogo, setIsUploadingLogo] = useState<boolean>(false);
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+    const isFormView = activeTab !== 'Overview';
+
+    // Load user's saved logo URL upon login
+    const fetchUserLogo = async () => {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            setLogoUrl(DEFAULT_LOGO);
+            return;
+        }
+
+        try {
+            const response = await apiFetch(`/api/logo/get`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setLogoUrl(data.logoUrl || DEFAULT_LOGO);
+            } else {
+                setLogoUrl(DEFAULT_LOGO);
+            }
+        } catch {
+            setLogoUrl(DEFAULT_LOGO);
+        }
+    };
+
+    const handleLogout = () => {
+        localStorage.removeItem("authToken");
+        localStorage.removeItem("session_login_time");
+        setIsAuthenticated(false);
+        setLogoUrl(DEFAULT_LOGO);
+    };
 
     useEffect(() => {
         const checkSessionExpiration = () => {
@@ -42,157 +105,276 @@ export default function MainFrame() {
         return () => clearInterval(interval);
     }, []);
 
-    const handleLogout = () => {
-        localStorage.removeItem("authToken");
-        localStorage.removeItem("session_login_time");
-        setIsAuthenticated(false);
+    useEffect(() => {
+        if (isAuthenticated) {
+            fetchUserLogo();
+        } else {
+            setLogoUrl(DEFAULT_LOGO);
+        }
+    }, [isAuthenticated]);
+
+    const handleLogoClick = () => {
+        // The logo is stored on the server, which demo mode never talks to: explain instead of failing
+        if (!isAuthenticated) {
+            alert(t('logo.demoDisabled'));
+            return;
+        }
+        fileInputRef.current?.click();
+    };
+
+    const handleLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Reset input so re-selecting the same file still triggers onChange
+        e.target.value = '';
+
+        if (file.type !== 'image/png') {
+            alert(t('logo.errorType'));
+            return;
+        }
+
+        if (file.size > MAX_LOGO_SIZE_BYTES) {
+            alert(t('logo.errorSize'));
+            return;
+        }
+
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        setIsUploadingLogo(true);
+        try {
+            const response = await apiFetch(`/api/logo/upload`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error(t('logo.errorUpload'));
+            }
+
+            const data = await response.json();
+            setLogoUrl(data.logoUrl ? `${data.logoUrl}?t=${Date.now()}` : DEFAULT_LOGO);
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : t('logo.errorUpload');
+            alert(message);
+        } finally {
+            setIsUploadingLogo(false);
+        }
     };
 
     // Updates both the active sidebar tab and the header title
     const handleTabChange = (tab: TabType) => {
         setActiveTab(tab);
-        setViewportTitle(tab);
+        setViewportKey(tabTitleKey[tab]);
     };
 
-    // Logged in: building opens its form. Demo mode: only the header title changes.
+    // A building with a screen opens it (same in demo mode and signed in)
     const handleBuildingClick = (buildingName: string) => {
-        if (isAuthenticated) {
-            handleTabChange(buildingToTab[buildingName]);
-        } else {
-            setViewportTitle(buildingName);
-        }
+        const tab = buildingToTab[buildingName];
+        if (tab) handleTabChange(tab);
     };
 
-    const { unitStocks, products, productStocks, isLoading, error } = useInventory(isAuthenticated);
+    const inventory = useInventory(isAuthenticated);
+    const { unitStocks, products, productStocks, isLoading, error } = inventory;
 
-    // Logged in + a form tab selected -> show the form, otherwise the map
+    // A screen tab is selected -> show it, otherwise the map
     const renderViewport = () => {
-        if (isAuthenticated) {
-            switch (activeTab) {
-                case 'Inventory': return <InventoryTable unitStocks={unitStocks} isLoading={isLoading} error={error} onClose={() => handleTabChange('Overview')} />;
-                case 'Products': return <ProductsTable productStocks={productStocks} products={products} isLoading={isLoading} error={error} onClose={() => handleTabChange('Overview')} />;
-            }
+        switch (activeTab) {
+            case 'Inventory': return <InventoryTable unitStocks={unitStocks} isLoading={isLoading} error={error} onClose={() => handleTabChange('Overview')} />;
+            case 'Products': return <ProductsTable productStocks={productStocks} products={products} isLoading={isLoading} error={error} onClose={() => handleTabChange('Overview')} />;
+            default: return <MapCanvas onBuildingClick={handleBuildingClick} />;
         }
-        return <MapCanvas onBuildingClick={handleBuildingClick} isLoggedIn={isAuthenticated} />;
     };
+
+    // The promo text has an {email} placeholder, which is rendered as a mailto link
+    const [promoBefore, promoAfter] = t('promo.text').split('{email}');
 
     return (
-        <div style={{
-            display: 'flex',
-            width: '100%',
-            height: '100%',
-            overflow: 'hidden',
-            backgroundColor: '#0f172a',
-            color: '#f8fafc',
-            fontFamily: 'sans-serif',
-            margin: 0,
-            padding: 0,
-            boxSizing: 'border-box'
-        }}>
-            <Sidebar
-                activeTab={activeTab}
-                setActiveTab={handleTabChange}
-                isAuthenticated={isAuthenticated}
-                onLoginClick={() => setShowLoginModal(true)}
-                onLogoutClick={handleLogout}
-            />
-
-            <main style={{
-                position: 'relative',
-                width: 'calc(100vw - 240px)',
-                height: '100%',
-                backgroundColor: '#020617',
-                padding: '24px',
+        <InventoryContext.Provider value={inventory}>
+            <div style={{
                 display: 'flex',
-                flexDirection: 'column',
-                boxSizing: 'border-box',
-                overflow: 'hidden'
+                width: '100%',
+                height: '100%',
+                overflow: 'hidden',
+                backgroundColor: c.bgApp,
+                color: c.text,
+                fontFamily: 'sans-serif',
+                margin: 0,
+                padding: 0,
+                boxSizing: 'border-box'
             }}>
-                <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #1e293b', paddingBottom: '12px' }}>
-                    <h1 style={{ fontSize: '20px', fontWeight: 600, color: '#e2e8f0', margin: 0 }}>
-                        {!isAuthenticated && 'Simulated Viewport - '}{viewportTitle}
-                    </h1>
-                    <span style={{ fontSize: '12px', fontFamily: 'monospace', padding: '4px 12px', borderRadius: '9999px', border: isAuthenticated ? '1px solid rgba(20, 184, 166, 0.4)' : '1px solid rgba(245, 158, 11, 0.4)', color: isAuthenticated ? '#14b8a6' : '#f59e0b', backgroundColor: isAuthenticated ? 'rgba(20, 184, 166, 0.05)' : 'rgba(245, 158, 11, 0.05)' }}>
-                        {isAuthenticated ? 'System Connected' : 'Guest Sandbox Mode (Read-Only)'}
-                    </span>
-                </header>
+                <Sidebar
+                    activeTab={activeTab}
+                    setActiveTab={handleTabChange}
+                    isAuthenticated={isAuthenticated}
+                    onLoginClick={() => setShowLoginModal(true)}
+                    onLogoutClick={handleLogout}
+                />
 
-                <div style={{ position: 'relative', flex: 1, width: '100%', borderRadius: '12px', overflow: 'hidden', border: '1px solid #1e293b', backgroundColor: 'rgba(30, 41, 59, 0.2)' }}>
-                    {renderViewport()}
-                </div>
-
-                { }
-                {!isFormView && (
-                    <div
-                        onSubmit={(e) => {
-                            e.preventDefault();
-                            // Add your subscription logic here
-                        }}
-                        style={{
-                            position: 'absolute',
-                            bottom: '24px',
-                            left: '24px',
-                            zIndex: 20,
-                            width: '300px',
-                            padding: '16px',
-                            borderRadius: '12px',
-                            backgroundColor: 'rgba(15, 23, 42, 0.92)',
-                            backdropFilter: 'blur(8px)',
-                            border: '1px solid #1e293b',
-                            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '10px'
-                        }}
-                    >
-                        <div>
-                            <h3 style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: 600, color: '#f8fafc' }}>
-                                Like this inventory system?
-                            </h3>
-                            <p style={{ margin: 0, fontSize: '12px', lineHeight: '1.4', color: '#94a3b8' }}>
-                                Use this platform for your business or request a custom-built solution. Subscribe or reach out at{' '}
-                                <a href="mailto:pavlovfontanka@gmail.com" style={{ color: '#14b8a6', textDecoration: 'none' }}>
-                                    pavlovfontanka@gmail.com
-                                </a>.
-                            </p>
+                <main style={{
+                    position: 'relative',
+                    width: 'calc(100vw - 240px)',
+                    height: '100%',
+                    backgroundColor: c.bgMain,
+                    padding: '24px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    boxSizing: 'border-box',
+                    overflow: 'hidden'
+                }}>
+                    {/* 3-column grid keeps the title truly centered horizontally above the canvas */}
+                    <header style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr auto 1fr',
+                        alignItems: 'center',
+                        marginBottom: '16px',
+                        borderBottom: `1px solid ${c.borderSubtle}`,
+                        paddingBottom: '12px'
+                    }}>
+                        {/* Upper-left corner: Logo */}
+                        <div style={{ justifySelf: 'start', display: 'flex', alignItems: 'center' }}>
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/png"
+                                onChange={handleLogoFileChange}
+                                style={{ display: 'none' }}
+                            />
+                            <div
+                                onClick={handleLogoClick}
+                                title={isAuthenticated ? t('logo.uploadHover') : t('logo.demoDisabled')}
+                                style={{
+                                    width: '48px',
+                                    height: '48px',
+                                    overflow: 'hidden',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    opacity: isUploadingLogo ? 0.5 : 1,
+                                    transition: 'border-color 0.2s, transform 0.15s',
+                                }}
+                                onMouseEnter={(e) => (e.currentTarget.style.borderColor = c.accent)}
+                                onMouseLeave={(e) => (e.currentTarget.style.borderColor = c.borderSubtle)}
+                            >
+                                <img
+                                    src={logoUrl}
+                                    alt={t('logo.alt')}
+                                    onError={() => setLogoUrl(DEFAULT_LOGO)}
+                                    style={{
+                                        width: '100%',
+                                        height: '100%',
+                                        objectFit: 'contain'
+                                    }}
+                                />
+                            </div>
                         </div>
 
-                        <button
-                            type="button"
-                            onClick={() =>
-                                alert(
-                                    'Thank you for your interest!\n' +
-                                    'The subscription system is not available yet.\n' +
-                                    'If you need a custom inventory, automation, production, warehouse, or business management solution, please contact:\n' +
-                                    'pavlovfontanka@gmail.com\n' +
-                                    'Our team would be happy to discuss your requirements and build a solution tailored to your business.'
-                                )
-                            }
+                        {/* Horizontal center: Active Tab Title */}
+                        <h1 style={{
+                            fontSize: '20px',
+                            fontWeight: 600,
+                            color: c.textStrong,
+                            margin: 0,
+                            textAlign: 'center'
+                        }}>
+                            {t(viewportKey)}
+                        </h1>
+
+                        {/* Upper-right corner: Connection status badge */}
+                        <div style={{ justifySelf: 'end' }}>
+                            <span
+                                title={isAuthenticated ? undefined : t('main.demoHint')}
+                                style={{
+                                    fontSize: '12px',
+                                    fontFamily: 'monospace',
+                                    padding: '4px 12px',
+                                    borderRadius: '9999px',
+                                    border: `1px solid ${alpha(isAuthenticated ? 'accent' : 'warning', 0.4)}`,
+                                    color: isAuthenticated ? c.accent : c.warning,
+                                    backgroundColor: alpha(isAuthenticated ? 'accent' : 'warning', 0.05),
+                                    cursor: isAuthenticated ? 'default' : 'help'
+                                }}
+                            >
+                                {isAuthenticated ? t('main.systemConnected') : t('main.demoMode')}
+                            </span>
+                        </div>
+                    </header>
+
+                    <div style={{ position: 'relative', flex: 1, width: '100%', borderRadius: '12px', overflow: 'hidden', border: `1px solid ${c.borderSubtle}`, backgroundColor: alpha('bgSurface', 0.2) }}>
+                        {renderViewport()}
+                    </div>
+
+                    {/* Bottom-left promo card: only on the map */}
+                    {!isFormView && (
+                        <div
                             style={{
-                                padding: '8px 12px',
-                                fontSize: '12px',
-                                fontWeight: 600,
-                                borderRadius: '6px',
-                                border: 'none',
-                                backgroundColor: '#14b8a6',
-                                color: '#020617',
-                                cursor: 'pointer',
-                                alignSelf: 'center',
+                                position: 'absolute',
+                                bottom: '24px',
+                                left: '24px',
+                                zIndex: 20,
+                                width: '300px',
+                                padding: '16px',
+                                borderRadius: '12px',
+                                backgroundColor: alpha('bgApp', 0.92),
+                                backdropFilter: 'blur(8px)',
+                                border: `1px solid ${c.borderSubtle}`,
+                                boxShadow: `0 10px 25px -5px ${alpha('overlay', 0.5)}`,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '10px'
                             }}
                         >
-                            Subscribe
-                        </button>
-                    </div>
-                )}
+                            <div>
+                                <h3 style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: 600, color: c.text }}>
+                                    {t('promo.title')}
+                                </h3>
+                                <p style={{ margin: 0, fontSize: '12px', lineHeight: '1.4', color: c.textMuted }}>
+                                    {promoBefore}
+                                    <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: c.accent, textDecoration: 'none' }}>
+                                        {SUPPORT_EMAIL}
+                                    </a>
+                                    {promoAfter}
+                                </p>
+                            </div>
 
-                {!isFormView && (
-                    <ScribeAdvisor message={isAuthenticated ? "All systems operational, milord." : "Sign in to manage our production, milord!"}
-                        isDemoMode={!isAuthenticated} />
-                )}
-            </main>
+                            <button
+                                type="button"
+                                onClick={() => alert(t('promo.alert', { email: SUPPORT_EMAIL }))}
+                                style={{
+                                    padding: '8px 12px',
+                                    fontSize: '12px',
+                                    fontWeight: 600,
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    backgroundColor: c.accent,
+                                    color: c.onAccent,
+                                    cursor: 'pointer',
+                                    alignSelf: 'center',
+                                }}
+                            >
+                                {t('promo.subscribe')}
+                            </button>
+                        </div>
+                    )}
 
-            {showLoginModal && <LoginModal onSuccess={() => { setIsAuthenticated(true); setShowLoginModal(false); }} onClose={() => setShowLoginModal(false)} />}
-        </div>
+                    {!isFormView && (
+                        <ScribeAdvisor
+                            message={isAuthenticated ? t('advisor.connected') : t('advisor.guest')}
+                            isDemoMode={!isAuthenticated}
+                        />
+                    )}
+                </main>
+
+                {showLoginModal && <LoginModal onSuccess={() => { setIsAuthenticated(true); setShowLoginModal(false); }} onClose={() => setShowLoginModal(false)} />}
+            </div>
+        </InventoryContext.Provider>
     );
-
 }

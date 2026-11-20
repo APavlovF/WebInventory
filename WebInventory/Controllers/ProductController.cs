@@ -84,6 +84,13 @@ public class ProductController(EfDbContext context) : ControllerBase
     }
 
     [Authorize]
+    [HttpPost("delete")]
+    public async Task<IActionResult> DeleteProducts()
+    {
+        return Ok();
+    }
+
+    [Authorize]
     [HttpPost("fetch")]
     public async Task<IActionResult> GetProducts()
     {

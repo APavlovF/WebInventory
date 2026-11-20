@@ -12,6 +12,14 @@ namespace WebInventory.Controllers;
 public class WarehouseController(EfDbContext context) : ControllerBase
 {
     [Authorize]
+    [HttpPost("delete")]
+    public async Task<IActionResult> DeleteMaterials()
+    {
+        return Ok();
+    }
+
+
+    [Authorize]
     [HttpPost("fetch")]
     public async Task<IActionResult> GetMaterials()
     {

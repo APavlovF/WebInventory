@@ -13,6 +13,8 @@ import {
     submitBtnStyle,
 } from '../shared/ModalStyles';
 import type { Product } from '../../types/inventory';
+import { c, alpha } from '../../theme/themes';
+import { useI18n } from '../../i18n/I18nContext';
 
 interface RemoveProductModalProps {
     isOpen: boolean;
@@ -35,6 +37,7 @@ export default function RemoveProductModal({
     onClose,
     onSuccess,
 }: RemoveProductModalProps) {
+    const { t } = useI18n();
     const [selectedProductId, setSelectedProductId] = useState('');
     const [rows, setRows] = useState<RemoveRow[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -102,15 +105,12 @@ export default function RemoveProductModal({
     const handleSubmit = async () => {
         if (rows.length === 0) {
             setApiError(
-                'Select at least one product.'
+                t('rmProd.selectOne')
             );
             return;
         }
 
-        const confirmed = window.confirm(
-            `Remove ${rows.length} product(s)?\n\n` +
-            `Products will no longer appear in production screens, stock reports and dropdowns.`
-        );
+        const confirmed = window.confirm(t('rmProd.confirm', { count: rows.length }));
 
         if (!confirmed)
             return;
@@ -133,13 +133,13 @@ export default function RemoveProductModal({
 
             if (response.status === 401) {
                 throw new Error(
-                    'You are not authorized. Please sign in again.'
+                    t('err.notAuthorized')
                 );
             }
 
             if (!response.ok) {
                 throw new Error(
-                    `Delete failed (${response.status})`
+                    t('common.deleteFailed', { status: response.status })
                 );
             }
 
@@ -150,7 +150,7 @@ export default function RemoveProductModal({
         catch (err: any) {
             setApiError(
                 err.message ??
-                'Error removing products.'
+                t('rmProd.errRemoving')
             );
         }
         finally {
@@ -171,11 +171,11 @@ export default function RemoveProductModal({
                 <h3
                     style={{
                         margin: '0 0 16px',
-                        color: '#2dd4bf',
+                        color: c.accentBright,
                         textAlign: 'center',
                     }}
                 >
-                    Remove Products
+                    {t('rmProd.title')}
                 </h3>
 
                 <div
@@ -190,7 +190,7 @@ export default function RemoveProductModal({
                         <Combobox
                             value={selectedProductId}
                             onChange={setSelectedProductId}
-                            placeholder="Search product..."
+                            placeholder={t('rmProd.search')}
                             options={availableProducts.map(
                                 p => ({
                                     value: String(p.id),
@@ -214,7 +214,7 @@ export default function RemoveProductModal({
                         }}
                         onClick={handleAddProduct}
                     >
-                        + Mark For Removal
+                        {t('common.markForRemoval')}
                     </button>
                 </div>
 
@@ -239,10 +239,10 @@ export default function RemoveProductModal({
                                         padding:
                                             '10px',
                                         color:
-                                            '#94a3b8',
+                                            c.textMuted,
                                     }}
                                 >
-                                    Product
+                                    {t('common.product')}
                                 </th>
 
                                 <th
@@ -252,10 +252,10 @@ export default function RemoveProductModal({
                                         padding:
                                             '10px',
                                         color:
-                                            '#94a3b8',
+                                            c.textMuted,
                                     }}
                                 >
-                                    SKU
+                                    {t('common.sku')}
                                 </th>
 
                                 <th
@@ -265,10 +265,10 @@ export default function RemoveProductModal({
                                         padding:
                                             '10px',
                                         color:
-                                            '#94a3b8',
+                                            c.textMuted,
                                     }}
                                 >
-                                    Price
+                                    {t('common.price')}
                                 </th>
 
                                 <th
@@ -295,7 +295,7 @@ export default function RemoveProductModal({
                                             textAlign:
                                                 'center',
                                             borderTop:
-                                                '1px solid rgba(51,65,85,0.5)',
+                                                `1px solid ${alpha('border', 0.5)}`,
                                         }}
                                     >
                                         {row.name}
@@ -308,7 +308,7 @@ export default function RemoveProductModal({
                                             textAlign:
                                                 'center',
                                             borderTop:
-                                                '1px solid rgba(51,65,85,0.5)',
+                                                `1px solid ${alpha('border', 0.5)}`,
                                         }}
                                     >
                                         {row.sku}
@@ -321,7 +321,7 @@ export default function RemoveProductModal({
                                             textAlign:
                                                 'center',
                                             borderTop:
-                                                '1px solid rgba(51,65,85,0.5)',
+                                                `1px solid ${alpha('border', 0.5)}`,
                                         }}
                                     >
                                         $
@@ -337,7 +337,7 @@ export default function RemoveProductModal({
                                             textAlign:
                                                 'center',
                                             borderTop:
-                                                '1px solid rgba(51,65,85,0.5)',
+                                                `1px solid ${alpha('border', 0.5)}`,
                                         }}
                                     >
                                         <button
@@ -367,10 +367,10 @@ export default function RemoveProductModal({
                                             textAlign:
                                                 'center',
                                             color:
-                                                '#94a3b8',
+                                                c.textMuted,
                                         }}
                                     >
-                                        No products selected.
+                                        {t('rmProd.none')}
                                     </td>
                                 </tr>
                             )}
@@ -382,7 +382,7 @@ export default function RemoveProductModal({
                     <div
                         style={{
                             marginTop: '12px',
-                            color: '#f87171',
+                            color: c.danger,
                             fontSize: '13px',
                         }}
                     >
@@ -404,7 +404,7 @@ export default function RemoveProductModal({
                         onClick={handleClose}
                         style={cancelBtnStyle}
                     >
-                        Cancel
+                        {t('common.cancel')}
                     </button>
 
                     <button
@@ -425,8 +425,8 @@ export default function RemoveProductModal({
                         }}
                     >
                         {isSubmitting
-                            ? 'Removing...'
-                            : 'Remove Products'}
+                            ? t('common.removing')
+                            : t('rmProd.title')}
                     </button>
                 </div>
             </div>

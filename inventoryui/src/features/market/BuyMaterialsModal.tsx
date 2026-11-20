@@ -1,7 +1,7 @@
 // src/features/market/BuyMaterialsModal.tsx
 import { useState, useMemo, useRef, useEffect } from 'react';
 import type { SyntheticEvent, ChangeEvent } from 'react';
-import { apiFetch } from '../../api';
+import { apiFetch, isDemoMode } from '../../api';
 import Combobox from '../shared/Combobox';
 import {
     overlayStyle,
@@ -17,6 +17,8 @@ import {
 } from '../shared/ModalStyles';
 import type { Unit, UnitStock } from '../../types/inventory';
 import '../shared/modalForm.css';
+import { c, alpha } from '../../theme/themes';
+import { useI18n } from '../../i18n/I18nContext';
 
 interface BuyMaterialsModalProps {
     isOpen: boolean;
@@ -79,19 +81,32 @@ export default function BuyMaterialsModal({
     onClose,
     onSuccess,
 }: BuyMaterialsModalProps) {
+    const { t } = useI18n();
     const [rows, setRows] = useState<BuyRow[]>([newRow()]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isImporting, setIsImporting] = useState(false);
-    const [importStatus, setImportStatus] = useState<string>('Preparing file...');
+    const [importStatus, setImportStatus] = useState<string>(t('buy.preparing'));
     const [apiError, setApiError] = useState<string | null>(null);
+    const [notice, setNotice] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
+
+    // Invoice parsing runs on the server, which demo mode never talks to: explain instead of failing
+    const openFilePicker = () => {
+        if (isDemoMode()) {
+            setNotice(t('buy.importDemoDisabled'));
+            return;
+        }
+        setNotice(null);
+        fileInputRef.current?.click();
+    };
     useEffect(() => {
         if (isOpen && autoOpenImport) {
             setTimeout(() => {
-                fileInputRef.current?.click();
+                openFilePicker();
             }, 100);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, autoOpenImport]);
 
     // Known materials by lower-case name
@@ -159,6 +174,7 @@ export default function BuyMaterialsModal({
     const resetForm = () => {
         setRows([newRow()]);
         setApiError(null);
+        setNotice(null);
     };
 
     const handleClose = () => {
@@ -206,7 +222,7 @@ export default function BuyMaterialsModal({
         abortControllerRef.current = controller;
 
         setIsImporting(true);
-        setImportStatus('Connecting to server...');
+        setImportStatus(t('buy.connecting'));
         setApiError(null);
 
         try {
@@ -221,10 +237,10 @@ export default function BuyMaterialsModal({
             });
 
             if (response.status === 401) {
-                throw new Error('You are not authorized. Please sign in again.');
+                throw new Error(t('err.notAuthorized'));
             }
             if (!response.ok || !response.body) {
-                throw new Error(`Invoice import failed (${response.status})`);
+                throw new Error(t('buy.errImport', { status: response.status }));
             }
 
             const reader = response.body.getReader();
@@ -268,7 +284,7 @@ export default function BuyMaterialsModal({
             }
 
             if (!Array.isArray(parsedItems) || parsedItems.length === 0) {
-                throw new Error('No materials were found in the uploaded invoice.');
+                throw new Error(t('buy.errNoItems'));
             }
 
             const importedRows: BuyRow[] = parsedItems.map((item) => {
@@ -288,9 +304,9 @@ export default function BuyMaterialsModal({
             setRows(importedRows);
         } catch (err: any) {
             if (err.name === 'AbortError') {
-                setApiError('Invoice import was canceled.');
+                setApiError(t('buy.errCanceled'));
             } else {
-                setApiError(err.message || 'Error parsing invoice.');
+                setApiError(err.message || t('buy.errParsing'));
             }
         } finally {
             abortControllerRef.current = null;
@@ -326,17 +342,17 @@ export default function BuyMaterialsModal({
             });
 
             if (response.status === 401) {
-                throw new Error('You are not authorized. Please sign in again.');
+                throw new Error(t('err.notAuthorized'));
             }
             if (!response.ok) {
-                throw new Error(`Purchase failed (${response.status})`);
+                throw new Error(t('buy.errPurchase', { status: response.status }));
             }
 
             resetForm();
             onSuccess();
             onClose();
         } catch (err: any) {
-            setApiError(err.message || 'Error saving purchase.');
+            setApiError(err.message || t('buy.errSaving'));
         } finally {
             setIsSubmitting(false);
         }
@@ -364,8 +380,8 @@ export default function BuyMaterialsModal({
                 >
                     <div />
 
-                    <h3 style={{ margin: 0, color: '#2dd4bf', textAlign: 'center' }}>
-                        Buy Materials
+                    <h3 style={{ margin: 0, color: c.accentBright, textAlign: 'center' }}>
+                        {t('buy.title')}
                     </h3>
 
                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -379,7 +395,7 @@ export default function BuyMaterialsModal({
                         <button
                             type="button"
                             disabled={isImporting || isSubmitting}
-                            onClick={() => fileInputRef.current?.click()}
+                            onClick={openFilePicker}
                             style={{
                                 ...addBtnStyle,
                                 marginTop: 0,
@@ -388,7 +404,7 @@ export default function BuyMaterialsModal({
                                 cursor: isImporting || isSubmitting ? 'not-allowed' : 'pointer',
                             }}
                         >
-                            {isImporting ? 'Parsing...' : '📄 Import Invoice'}
+                            {isImporting ? t('buy.parsing') : t('buy.import')}
                         </button>
                     </div>
                 </div>
@@ -402,25 +418,25 @@ export default function BuyMaterialsModal({
                                 ...gridRowLayout,
                             }}
                         >
-                            <span style={{ ...headerLabelStyle, width: '100%' }}>Material (pick or type new)</span>
-                            <span style={{ ...headerLabelStyle, width: '100%' }}>Quantity</span>
-                            <span style={{ ...headerLabelStyle, width: '100%' }}>Unit</span>
-                            <span style={{ ...headerLabelStyle, width: '100%' }}>Price / Unit</span>
-                            <span style={{ ...headerLabelStyle, width: '100%' }}>Total</span>
+                            <span style={{ ...headerLabelStyle, width: '100%' }}>{t('buy.colMaterial')}</span>
+                            <span style={{ ...headerLabelStyle, width: '100%' }}>{t('common.quantity')}</span>
+                            <span style={{ ...headerLabelStyle, width: '100%' }}>{t('common.unit')}</span>
+                            <span style={{ ...headerLabelStyle, width: '100%' }}>{t('buy.colPriceUnit')}</span>
+                            <span style={{ ...headerLabelStyle, width: '100%' }}>{t('buy.colTotal')}</span>
                             <span />
                         </div>
 
                         {rowInfos.map((info) => {
                             const errorText = info.duplicate
-                                ? 'This material is already in the list'
+                                ? t('buy.duplicate')
                                 : info.exceedsLimit
-                                    ? `Exceeds max stock limit (in stock: ${info.existing}, max: ${maxStock})`
+                                    ? t('common.exceedsMax', { stock: info.existing, max: maxStock })
                                     : info.row.quantity !== '' && !info.qtyValid
-                                        ? 'Enter a quantity above 0'
+                                        ? t('buy.qtyAboveZero')
                                         : info.row.price !== '' && !info.priceValid
-                                            ? 'Enter a valid price (0 or higher)'
+                                            ? t('buy.validPrice')
                                             : info.missingMeasurement
-                                                ? 'New material: enter its unit of measurement (kg, pcs, ...)'
+                                                ? t('buy.needMeasurement')
                                                 : null;
 
                             return (
@@ -434,7 +450,7 @@ export default function BuyMaterialsModal({
                                         <Combobox
                                             value={info.row.name}
                                             onChange={(v) => handleRowChange(info.row.rowId, 'name', v)}
-                                            placeholder="e.g., Oak Wood"
+                                            placeholder={t('buy.placeholderName')}
                                             maxLength={200}
                                             allowCustom
                                             invalid={info.duplicate}
@@ -454,7 +470,7 @@ export default function BuyMaterialsModal({
                                             onChange={(e) => handleRowChange(info.row.rowId, 'quantity', e.target.value)}
                                             style={{
                                                 ...inputStyle,
-                                                borderColor: info.exceedsLimit ? '#f87171' : 'rgba(20, 184, 166, 0.4)',
+                                                borderColor: info.exceedsLimit ? c.danger : alpha('accent', 0.4),
                                             }}
                                         />
 
@@ -465,7 +481,7 @@ export default function BuyMaterialsModal({
                                             onChange={(e) =>
                                                 handleRowChange(info.row.rowId, 'measurement', e.target.value)
                                             }
-                                            placeholder="kg, pcs"
+                                            placeholder={t('buy.placeholderMeasurement')}
                                             maxLength={50}
                                             style={{ ...inputStyle, opacity: info.unit ? 0.6 : 1 }}
                                         />
@@ -481,8 +497,8 @@ export default function BuyMaterialsModal({
                                                 ...inputStyle,
                                                 borderColor:
                                                     info.row.price !== '' && !info.priceValid
-                                                        ? '#f87171'
-                                                        : 'rgba(20, 184, 166, 0.4)',
+                                                        ? c.danger
+                                                        : alpha('accent', 0.4),
                                             }}
                                         />
 
@@ -504,7 +520,7 @@ export default function BuyMaterialsModal({
                                                 ...removeBtnStyle,
                                                 visibility: rows.length > 1 ? 'visible' : 'hidden',
                                             }}
-                                            title="Remove material"
+                                            title={t('common.removeMaterial')}
                                         >
                                             ✕
                                         </button>
@@ -513,7 +529,7 @@ export default function BuyMaterialsModal({
                                     {errorText ? (
                                         <div
                                             style={{
-                                                color: '#f87171',
+                                                color: c.danger,
                                                 fontSize: '12px',
                                                 marginTop: '4px',
                                                 paddingLeft: '4px',
@@ -524,13 +540,13 @@ export default function BuyMaterialsModal({
                                     ) : info.isNew ? (
                                         <div
                                             style={{
-                                                color: '#94a3b8',
+                                                color: c.textMuted,
                                                 fontSize: '12px',
                                                 marginTop: '4px',
                                                 paddingLeft: '4px',
                                             }}
                                         >
-                                            New material "{info.row.name.trim()}" will be created
+                                            {t('buy.newMaterial', { name: info.row.name.trim() })}
                                         </div>
                                     ) : null}
                                 </div>
@@ -547,21 +563,25 @@ export default function BuyMaterialsModal({
                         }}
                     >
                         <button type="button" onClick={handleAddRow} style={addBtnStyle}>
-                            + Add Material
+                            {t('common.addMaterial')}
                         </button>
 
-                        <div style={{ color: '#e2e8f0', fontSize: '15px', fontWeight: 600, marginRight: '44px' }}>
-                            Total: <span style={{ color: '#2dd4bf' }}>${totalCost.toFixed(2)}</span>
+                        <div style={{ color: c.textStrong, fontSize: '15px', fontWeight: 600, marginRight: '44px' }}>
+                            {t('buy.total')}: <span style={{ color: c.accentBright }}>${totalCost.toFixed(2)}</span>
                         </div>
                     </div>
 
+                    {notice && (
+                        <div style={{ color: c.warning, fontSize: '13px', marginTop: '12px' }}>{notice}</div>
+                    )}
+
                     {apiError && (
-                        <div style={{ color: '#f87171', fontSize: '13px', marginTop: '12px' }}>{apiError}</div>
+                        <div style={{ color: c.danger, fontSize: '13px', marginTop: '12px' }}>{apiError}</div>
                     )}
 
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
                         <button type="button" onClick={handleClose} style={cancelBtnStyle}>
-                            Cancel
+                            {t('common.cancel')}
                         </button>
                         <button
                             type="submit"
@@ -572,7 +592,7 @@ export default function BuyMaterialsModal({
                                 cursor: !isFormValid || isSubmitting || isImporting ? 'not-allowed' : 'pointer',
                             }}
                         >
-                            {isSubmitting ? 'Saving...' : 'Buy Materials'}
+                            {isSubmitting ? t('common.saving') : t('buy.title')}
                         </button>
                     </div>
                 </form>
@@ -583,7 +603,7 @@ export default function BuyMaterialsModal({
                         style={{
                             ...overlayStyle,
                             zIndex: 1100,
-                            backgroundColor: 'rgba(15, 23, 42, 0.75)',
+                            backgroundColor: alpha('bgApp', 0.75),
                         }}
                     >
                         <div
@@ -603,15 +623,15 @@ export default function BuyMaterialsModal({
                                     width: '36px',
                                     height: '36px',
                                     margin: '0 auto 16px',
-                                    border: '3px solid rgba(45, 212, 191, 0.25)',
-                                    borderTopColor: '#2dd4bf',
+                                    border: `3px solid ${alpha('accentBright', 0.25)}`,
+                                    borderTopColor: c.accentBright,
                                     borderRadius: '50%',
                                     animation: 'spin 1.5s linear infinite',
                                 }}
                             />
 
-                            <h4 style={{ margin: '0 0 10px', color: '#2dd4bf', fontSize: '16px' }}>
-                                Importing Invoice
+                            <h4 style={{ margin: '0 0 10px', color: c.accentBright, fontSize: '16px' }}>
+                                {t('buy.importing')}
                             </h4>
 
                             {/* Fixed 2-line height prevents vertical jumping */}
@@ -628,7 +648,7 @@ export default function BuyMaterialsModal({
                                 <p
                                     style={{
                                         margin: 0,
-                                        color: '#cbd5e1',
+                                        color: c.textStrong,
                                         fontSize: '14px',
                                         lineHeight: '20px',
                                         overflowWrap: 'anywhere',
@@ -643,11 +663,11 @@ export default function BuyMaterialsModal({
                                 onClick={handleCancelImport}
                                 style={{
                                     ...cancelBtnStyle,
-                                    borderColor: '#f87171',
-                                    color: '#f87171',
+                                    borderColor: c.danger,
+                                    color: c.danger,
                                 }}
                             >
-                                Cancel
+                                {t('common.cancel')}
                             </button>
                         </div>
 

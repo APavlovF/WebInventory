@@ -6,6 +6,8 @@ import Combobox from '../shared/Combobox';
 import { overlayStyle, modalStyle, scrollAreaStyle, rowStyle, headerLabelStyle, summaryStyle, inputStyle, addBtnStyle, removeBtnStyle, cancelBtnStyle, submitBtnStyle } from '../shared/ModalStyles';
 import type { Product, ProductStock, UnitStock } from '../../types/inventory';
 import '../shared/modalForm.css';
+import { c, alpha } from '../../theme/themes';
+import { useI18n } from '../../i18n/I18nContext';
 
 interface ProduceBatchModalProps {
     isOpen: boolean;
@@ -36,6 +38,7 @@ export default function ProduceBatchModal({
     onClose,
     onSuccess,
 }: ProduceBatchModalProps) {
+    const { t } = useI18n();
     const [rows, setRows] = useState<BatchRow[]>([newRow()]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [apiError, setApiError] = useState<string | null>(null);
@@ -180,17 +183,17 @@ export default function ProduceBatchModal({
             });
 
             if (response.status === 401) {
-                throw new Error('You are not authorized. Please sign in again.');
+                throw new Error(t('err.notAuthorized'));
             }
             if (!response.ok) {
-                throw new Error(`Production failed (${response.status})`);
+                throw new Error(t('produce.errFailed', { status: response.status }));
             }
 
             resetForm();
             onSuccess();
             onClose();
         } catch (err: any) {
-            setApiError(err.message || 'Error recording batch production.');
+            setApiError(err.message || t('produce.errRecording'));
         } finally {
             setIsSubmitting(false);
         }
@@ -199,27 +202,27 @@ export default function ProduceBatchModal({
     return (
         <div style={overlayStyle}>
             <div className="modal-form" style={modalStyle}>
-                <h3 style={{ margin: '0 0 16px 0', color: '#2dd4bf', textAlign: 'center' }}>Produce Batch</h3>
+                <h3 style={{ margin: '0 0 16px 0', color: c.accentBright, textAlign: 'center' }}>{t('produce.title')}</h3>
 
                 <form onSubmit={handleSubmit}>
                     {/* Scrollable list: header stays on top, rows scroll under it */}
                     <div style={scrollAreaStyle}>
                         <div style={rowStyle(true)}>
-                            <span style={{ ...headerLabelStyle, flex: 3 }}>Select Product</span>
-                            <span style={{ ...headerLabelStyle, flex: 1 }}>Quantity</span>
-                            <span style={{ ...headerLabelStyle, flex: 1.4 }}>Wholesale / Retail</span>
+                            <span style={{ ...headerLabelStyle, flex: 3 }}>{t('common.selectProduct')}</span>
+                            <span style={{ ...headerLabelStyle, flex: 1 }}>{t('common.quantity')}</span>
+                            <span style={{ ...headerLabelStyle, flex: 1.4 }}>{t('common.wholesaleRetail')}</span>
                             <span style={{ width: '36px', flexShrink: 0 }} />
                         </div>
 
                         {rowInfos.map((info) => {
                             const errorText = info.invalidRecipe
-                                ? 'This product has materials without a quantity defined'
+                                ? t('produce.invalidRecipe')
                                 : info.exceedsLimit
-                                ? `Exceeds max stock limit (in stock: ${info.existing}, max: ${maxStock})`
+                                ? t('common.exceedsMax', { stock: info.existing, max: maxStock })
                                 : info.lacksMaterials
-                                ? 'Not enough materials'
+                                ? t('produce.notEnoughMaterials')
                                 : info.row.quantity !== '' && !info.qtyValid
-                                ? 'Enter a whole number above 0'
+                                ? t('common.wholeNumberAboveZero')
                                 : null;
 
                             return (
@@ -228,14 +231,14 @@ export default function ProduceBatchModal({
                                         <Combobox
                                             value={info.row.productId}
                                             onChange={(v) => handleRowChange(info.row.rowId, 'productId', v)}
-                                            placeholder="-- Choose Product --"
+                                            placeholder={t('common.chooseProduct')}
                                             style={{ flex: 3 }}
                                             options={products.map((p) => {
                                                 const inStock = stockByProductId.get(p.id) || 0;
                                                 const retail = round(p.price * (p.retailRate ?? 1));
                                                 return {
                                                     value: String(p.id),
-                                                    label: `${p.name} (In stock: ${inStock} / ${maxStock})`,
+                                                    label: t('common.inStockMax', { name: p.name, stock: inStock, max: maxStock }),
                                                     hint: `$${p.price.toFixed(2)} / $${retail.toFixed(2)}`,
                                                     disabled: inStock >= maxStock || isTakenByOtherRow(info.row.rowId, p.id),
                                                 };
@@ -255,8 +258,8 @@ export default function ProduceBatchModal({
                                                 flex: 1,
                                                 borderColor:
                                                     info.exceedsLimit || info.lacksMaterials
-                                                        ? '#f87171'
-                                                        : 'rgba(20, 184, 166, 0.4)',
+                                                        ? c.danger
+                                                        : alpha('accent', 0.4),
                                             }}
                                         />
 
@@ -284,14 +287,14 @@ export default function ProduceBatchModal({
                                                 ...removeBtnStyle,
                                                 visibility: rows.length > 1 ? 'visible' : 'hidden',
                                             }}
-                                            title="Remove product"
+                                            title={t('common.removeProduct')}
                                         >
                                             ✕
                                         </button>
                                     </div>
 
                                     {errorText && (
-                                        <div style={{ color: '#f87171', fontSize: '12px', marginTop: '4px', paddingLeft: '4px' }}>
+                                        <div style={{ color: c.danger, fontSize: '12px', marginTop: '4px', paddingLeft: '4px' }}>
                                             {errorText}
                                         </div>
                                     )}
@@ -311,22 +314,22 @@ export default function ProduceBatchModal({
                                 cursor: canAddRow ? 'pointer' : 'not-allowed',
                             }}
                         >
-                            + Add Product
+                            {t('common.addProduct')}
                         </button>
 
-                        <div style={{ color: '#e2e8f0', fontSize: '15px', fontWeight: 600, marginRight: '46px' }}>
-                            Total wholesale/retail:{' '}
-                            <span style={{ color: '#2dd4bf' }}>${totalWholesale.toFixed(2)}</span>
+                        <div style={{ color: c.textStrong, fontSize: '15px', fontWeight: 600, marginRight: '46px' }}>
+                            {t('common.wholesaleRetailTotal')}{' '}
+                            <span style={{ color: c.accentBright }}>${totalWholesale.toFixed(2)}</span>
                             {' / '}
-                            <span style={{ color: '#38bdf8' }}>${totalRetail.toFixed(2)}</span>
+                            <span style={{ color: c.info }}>${totalRetail.toFixed(2)}</span>
                         </div>
                     </div>
 
                     {/* Total materials needed by the whole batch */}
                     {materialTotals.length > 0 && (
                         <div style={summaryStyle}>
-                            <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '8px' }}>
-                                Materials needed for this batch:
+                            <div style={{ fontSize: '12px', color: c.textMuted, marginBottom: '8px' }}>
+                                {t('produce.materialsNeeded')}
                             </div>
                             {materialTotals.map((m) => (
                                 <div
@@ -336,14 +339,13 @@ export default function ProduceBatchModal({
                                         justifyContent: 'space-between',
                                         fontSize: '13px',
                                         padding: '4px 0',
-                                        borderBottom: '1px solid rgba(148, 163, 184, 0.1)',
-                                        color: m.isInsufficient ? '#f87171' : '#e2e8f0',
+                                        borderBottom: `1px solid ${alpha('textMuted', 0.1)}`,
+                                        color: m.isInsufficient ? c.danger : c.textStrong,
                                     }}
                                 >
                                     <span>{m.name}</span>
                                     <span>
-                                        Need: <strong>{m.required}</strong> / Avail:{' '}
-                                        <strong>{m.available}</strong> {m.measurement}
+                                        {t('produce.need')}: <strong>{m.required}</strong> / {t('produce.avail')}:{' '}<strong>{m.available}</strong> {m.measurement}
                                     </span>
                                 </div>
                             ))}
@@ -351,12 +353,12 @@ export default function ProduceBatchModal({
                     )}
 
                     {apiError && (
-                        <div style={{ color: '#f87171', fontSize: '13px', marginTop: '12px' }}>{apiError}</div>
+                        <div style={{ color: c.danger, fontSize: '13px', marginTop: '12px' }}>{apiError}</div>
                     )}
 
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
                         <button type="button" onClick={handleClose} style={cancelBtnStyle}>
-                            Cancel
+                            {t('common.cancel')}
                         </button>
                         <button
                             type="submit"
@@ -367,7 +369,7 @@ export default function ProduceBatchModal({
                                 cursor: !isFormValid || isSubmitting ? 'not-allowed' : 'pointer',
                             }}
                         >
-                            {isSubmitting ? 'Producing...' : 'Produce Batch'}
+                            {isSubmitting ? t('produce.producing') : t('produce.title')}
                         </button>
                     </div>
                 </form>

@@ -18,10 +18,11 @@ import {
     type UnitStock,
 } from '../../types/inventory';
 import '../shared/modalForm.css';
+import { c, alpha } from '../../theme/themes';
+import { useI18n } from '../../i18n/I18nContext';
 
 interface MaterialLimitsModalProps {
     isOpen: boolean;
-    isAuthenticated: boolean;
     unitStocks: UnitStock[];
     onClose: () => void;
     onSuccess: () => void;
@@ -35,42 +36,18 @@ interface LimitRow {
     initialMax: number;
 }
 
-const DEMO_STOCKS: UnitStock[] = [
-    {
-        id: -1,
-        lowStockAlert: 10,
-        maxStockAlert: 100,
-        price: 50,
-        quantity: 45,
-        unit: { id: -1, name: 'Steel Sheets', measurement: 'kg', sku: 'DEMO-STL' },
-    },
-    {
-        id: -2,
-        lowStockAlert: 5,
-        maxStockAlert: NO_MAX_LIMIT,
-        price: 100,
-        quantity: 20,
-        unit: { id: -2, name: 'Oak Planks', measurement: 'pcs', sku: 'DEMO-OAK' },
-    },
-];
-
 export default function MaterialLimitsModal({
     isOpen,
-    isAuthenticated,
     unitStocks,
     onClose,
     onSuccess,
 }: MaterialLimitsModalProps) {
+    const { t } = useI18n();
     const [rows, setRows] = useState<LimitRow[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [apiError, setApiError] = useState<string | null>(null);
 
-    const activeStocks = useMemo(() => {
-        if (!isAuthenticated) {
-            return DEMO_STOCKS;
-        }
-        return Array.isArray(unitStocks) ? unitStocks : [];
-    }, [isAuthenticated, unitStocks]);
+    const activeStocks = useMemo(() => (Array.isArray(unitStocks) ? unitStocks : []), [unitStocks]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -129,7 +106,7 @@ export default function MaterialLimitsModal({
         rows.length > 0 &&
         rowInfos.every((r) => r.minValid && r.maxValid && !r.maxBelowMin);
 
-    const canSave = isAuthenticated && isFormValid && hasChanges && !isSubmitting;
+    const canSave = isFormValid && hasChanges && !isSubmitting;
 
     if (!isOpen) {
         return null;
@@ -173,17 +150,17 @@ export default function MaterialLimitsModal({
             });
 
             if (response.status === 401) {
-                throw new Error('You are not authorized. Please sign in again.');
+                throw new Error(t('err.notAuthorized'));
             }
 
             if (!response.ok) {
-                throw new Error(`Failed to save stock limits (${response.status})`);
+                throw new Error(t('limits.errFailed', { status: response.status }));
             }
 
             onSuccess();
             onClose();
         } catch (err: any) {
-            setApiError(err?.message || 'Error saving stock limits.');
+            setApiError(err?.message || t('limits.errSaving'));
         } finally {
             setIsSubmitting(false);
         }
@@ -199,40 +176,24 @@ export default function MaterialLimitsModal({
                 <h3
                     style={{
                         margin: '0 0 16px 0',
-                        color: '#2dd4bf',
+                        color: c.accentBright,
                         textAlign: 'center',
                     }}
                 >
-                    Warehouse Stock Limits
+                    {t('limits.title')}
                 </h3>
 
-                {!isAuthenticated && (
-                    <div
-                        style={{
-                            backgroundColor: 'rgba(245, 158, 11, 0.12)',
-                            border: '1px solid rgba(245, 158, 11, 0.4)',
-                            color: '#fbbf24',
-                            fontSize: '12px',
-                            padding: '8px 12px',
-                            borderRadius: '6px',
-                            marginBottom: '12px',
-                            textAlign: 'center',
-                        }}
-                    >
-                        Demo Mode: Preview only. Sign in to save stock limits.
-                    </div>
-                )}
 
                 {activeStocks.length === 0 ? (
                     <div
                         style={{
-                            color: '#94a3b8',
+                            color: c.textMuted,
                             textAlign: 'center',
                             padding: '24px 0',
                         }}
                     >
                         <p style={{ margin: '0 0 20px 0' }}>
-                            No materials found. Buy materials first to configure stock alerts.
+                            {t('limits.none')}
                         </p>
                         <div style={{ display: 'flex', justifyContent: 'center' }}>
                             <button
@@ -240,7 +201,7 @@ export default function MaterialLimitsModal({
                                 onClick={handleClose}
                                 style={cancelBtnStyle}
                             >
-                                Close
+                                {t('common.close')}
                             </button>
                         </div>
                     </div>
@@ -249,23 +210,23 @@ export default function MaterialLimitsModal({
                         <div style={scrollAreaStyle}>
                             <div style={rowStyle(true)}>
                                 <span style={{ ...headerLabelStyle, flex: 2.5 }}>
-                                    Material
+                                    {t('common.material')}
                                 </span>
                                 <span style={{ ...headerLabelStyle, flex: 1 }}>
-                                    Min (Alert)
+                                    {t('limits.min')}
                                 </span>
                                 <span style={{ ...headerLabelStyle, flex: 1 }}>
-                                    Max (Optional)
+                                    {t('limits.max')}
                                 </span>
                             </div>
 
                             {rowInfos.map((info) => {
                                 const errorText = !info.minValid
-                                    ? 'Min stock must be 0 or greater'
+                                    ? t('limits.errMin')
                                     : !info.maxValid
-                                        ? `Max stock must be a whole number between 1 and ${NO_MAX_LIMIT}`
+                                        ? t('limits.errMax', { max: NO_MAX_LIMIT })
                                         : info.maxBelowMin
-                                            ? 'Max stock cannot be less than Min stock'
+                                            ? t('limits.errMaxBelowMin')
                                             : null;
 
                                 return (
@@ -281,14 +242,14 @@ export default function MaterialLimitsModal({
                                                     display: 'flex',
                                                     justifyContent: 'space-between',
                                                     alignItems: 'center',
-                                                    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+                                                    backgroundColor: alpha('bgApp', 0.5),
                                                     cursor: 'default',
                                                 }}
                                             >
                                                 <span>{info.row.stock.unit.name}</span>
                                                 <span
                                                     style={{
-                                                        color: '#94a3b8',
+                                                        color: c.textMuted,
                                                         fontSize: '12px',
                                                     }}
                                                 >
@@ -313,8 +274,8 @@ export default function MaterialLimitsModal({
                                                     ...inputStyle,
                                                     flex: 1,
                                                     borderColor: !info.minValid
-                                                        ? '#f87171'
-                                                        : 'rgba(20,184,166,0.4)',
+                                                        ? c.danger
+                                                        : alpha('accent', 0.4),
                                                 }}
                                             />
 
@@ -323,7 +284,7 @@ export default function MaterialLimitsModal({
                                                 min="1"
                                                 max={NO_MAX_LIMIT}
                                                 step="1"
-                                                placeholder="No limit"
+                                                placeholder={t('limits.noLimit')}
                                                 value={info.row.maxStockAlert}
                                                 onChange={(e) =>
                                                     handleFieldChange(
@@ -337,8 +298,8 @@ export default function MaterialLimitsModal({
                                                     flex: 1,
                                                     borderColor:
                                                         !info.maxValid || info.maxBelowMin
-                                                            ? '#f87171'
-                                                            : 'rgba(20,184,166,0.4)',
+                                                            ? c.danger
+                                                            : alpha('accent', 0.4),
                                                 }}
                                             />
                                         </div>
@@ -346,7 +307,7 @@ export default function MaterialLimitsModal({
                                         {errorText && (
                                             <div
                                                 style={{
-                                                    color: '#f87171',
+                                                    color: c.danger,
                                                     fontSize: '12px',
                                                     marginTop: '4px',
                                                     paddingLeft: '4px',
@@ -363,7 +324,7 @@ export default function MaterialLimitsModal({
                         {apiError && (
                             <div
                                 style={{
-                                    color: '#f87171',
+                                    color: c.danger,
                                     fontSize: '13px',
                                     marginTop: '12px',
                                 }}
@@ -386,7 +347,7 @@ export default function MaterialLimitsModal({
                                 disabled={isSubmitting}
                                 style={cancelBtnStyle}
                             >
-                                Cancel
+                                {t('common.cancel')}
                             </button>
 
                             <button
@@ -398,7 +359,7 @@ export default function MaterialLimitsModal({
                                     cursor: canSave ? 'pointer' : 'not-allowed',
                                 }}
                             >
-                                {isSubmitting ? 'Saving...' : 'Save Limits'}
+                                {isSubmitting ? t('common.saving') : t('limits.save')}
                             </button>
                         </div>
                     </form>

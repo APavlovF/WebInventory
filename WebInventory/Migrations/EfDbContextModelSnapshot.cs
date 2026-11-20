@@ -258,6 +258,10 @@ namespace WebInventory.Migrations
                     b.Property<bool>("IsActivated")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("LogoUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<string>("PasswordHash")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
