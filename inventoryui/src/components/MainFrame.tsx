@@ -109,11 +109,51 @@ export default function MainFrame() {
     }, []);
 
     useEffect(() => {
-        if (isAuthenticated) {
-            fetchUserLogo();
-        } else {
-            setLogoUrl(DEFAULT_LOGO);
-        }
+        if (!isAuthenticated) return;
+
+        let lastWrite = 0;
+
+        // Refresh last-activity timestamp (throttled to at most once every 5s)
+        const recordActivity = () => {
+            const now = Date.now();
+            if (now - lastWrite < 5000) return;
+            if (!localStorage.getItem('authToken')) return;
+
+            lastWrite = now;
+            localStorage.setItem('session_login_time', now.toString());
+        };
+
+        const checkSessionExpiration = () => {
+            const loginTime = localStorage.getItem('session_login_time');
+            const token = localStorage.getItem('authToken');
+
+            if (!token || !loginTime) {
+                handleLogout();
+                return;
+            }
+
+            if (Date.now() - parseInt(loginTime, 10) > EXPIRATION_TIME_MS) {
+                handleLogout();
+            }
+        };
+
+        // Stamp activity right away on mount/login, then listen for user input
+        recordActivity();
+        const events: (keyof WindowEventMap)[] = [
+            'mousedown',
+            'mousemove',
+            'keydown',
+            'scroll',
+            'touchstart',
+        ];
+        events.forEach((ev) => window.addEventListener(ev, recordActivity, { passive: true }));
+
+        const interval = setInterval(checkSessionExpiration, 10000);
+
+        return () => {
+            events.forEach((ev) => window.removeEventListener(ev, recordActivity));
+            clearInterval(interval);
+        };
     }, [isAuthenticated]);
 
     const handleLogoClick = () => {
@@ -382,7 +422,14 @@ export default function MainFrame() {
                     )}
                 </main>
 
-                {showLoginModal && <LoginModal onSuccess={() => { setIsAuthenticated(true); setShowLoginModal(false); }} onClose={() => setShowLoginModal(false)} />}
+                {showLoginModal && <LoginModal
+                    onSuccess={() => {
+                        localStorage.setItem('session_login_time', Date.now().toString());
+                        setIsAuthenticated(true);
+                        setShowLoginModal(false);
+                    }}
+                    onClose={() => setShowLoginModal(false)}
+                />}
             </div>
         </InventoryContext.Provider>
     );
