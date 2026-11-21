@@ -530,6 +530,7 @@ export default function AddProductTypeModal({
                                     <div key={row.rowId} style={{ marginBottom: '8px' }}>
                                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                             <Combobox
+                                                searchable
                                                 value={row.unitId}
                                                 onChange={(v) => handleRowChange(row.rowId, 'unitId', v)}
                                                 placeholder={t('addType.selectMaterial')}
@@ -640,6 +641,7 @@ export default function AddProductTypeModal({
                                         <div key={cRow.rowId} style={{ marginBottom: '8px' }}>
                                             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                                 <Combobox
+                                                    searchable
                                                     value={cRow.name}
                                                     onChange={(v) => handleCommissionChange(cRow.rowId, 'name', v)}
                                                     placeholder={t('addType.commissionName')}

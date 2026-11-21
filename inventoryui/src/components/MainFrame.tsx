@@ -426,6 +426,7 @@ export default function MainFrame() {
                     onSuccess={() => {
                         localStorage.setItem('session_login_time', Date.now().toString());
                         setIsAuthenticated(true);
+                        void fetchUserLogo();
                         setShowLoginModal(false);
                     }}
                     onClose={() => setShowLoginModal(false)}

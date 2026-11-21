@@ -184,6 +184,7 @@ export default function RemoveMaterialModal({
                 >
                     <div style={{ flex: 1 }}>
                         <Combobox
+                            searchable
                             value={selectedMaterialId}
                             onChange={setSelectedMaterialId}
                             placeholder={t('rmMat.search')}

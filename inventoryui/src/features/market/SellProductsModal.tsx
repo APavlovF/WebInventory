@@ -180,6 +180,7 @@ export default function SellProductsModal({
                                 <div key={info.row.rowId} style={{ marginBottom: '8px' }}>
                                     <div style={rowStyle(false)}>
                                         <Combobox
+                                            searchable
                                             value={info.row.productId}
                                             onChange={(v) => handleRowChange(info.row.rowId, 'productId', v)}
                                             placeholder={t('common.chooseProduct')}

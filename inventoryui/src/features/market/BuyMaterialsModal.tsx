@@ -448,6 +448,7 @@ export default function BuyMaterialsModal({
                                         }}
                                     >
                                         <Combobox
+                                            searchable
                                             value={info.row.name}
                                             onChange={(v) => handleRowChange(info.row.rowId, 'name', v)}
                                             placeholder={t('buy.placeholderName')}

@@ -1,12 +1,18 @@
 // src/features/shared/Combobox.tsx
 // One dropdown used by all forms, styled with the app theme.
-//  - allowCustom = false: searchable dropdown; filters options by text, reverts on close if nothing valid was picked
+//  - allowCustom = false: a normal "pick one" dropdown (value = the picked option's value)
 //  - allowCustom = true : a text field with suggestions; you can pick one OR type something new
+//  - searchable  = true : a text field that filters a long list as you type, but only a picked option
+//                         sets the value (it shows the option's label). clearable adds a ✕ that sets ''.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { inputStyle } from './ModalStyles';
 import { c, alpha } from '../../theme/themes';
+
+// Lower-case and without accents, so "acai" finds "Açaí"
+const normalize = (text: string) =>
+    text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 
 export interface ComboOption {
     value: string;   // what is stored when picked
@@ -21,6 +27,9 @@ interface ComboboxProps {
     options: ComboOption[];
     placeholder?: string;
     allowCustom?: boolean;
+    searchable?: boolean;
+    clearable?: boolean; // searchable only: show a ✕ to clear the picked option
+    clearTitle?: string;
     invalid?: boolean;
     maxLength?: number;
     style?: CSSProperties; // style of the outer wrapper (e.g. { flex: 3 })
@@ -32,31 +41,39 @@ export default function Combobox({
     options,
     placeholder,
     allowCustom = false,
+    searchable = false,
+    clearable = false,
+    clearTitle,
     invalid = false,
     maxLength,
     style,
 }: ComboboxProps) {
     const [isOpen, setIsOpen] = useState(false);
-    const [query, setQuery] = useState(''); // tracks search text when allowCustom = false
     const [activeIndex, setActiveIndex] = useState(-1);
     const [rect, setRect] = useState<DOMRect | null>(null);
+    const [query, setQuery] = useState(''); // what was typed in searchable mode
     const wrapperRef = useRef<HTMLDivElement>(null);
     const listRef = useRef<HTMLDivElement>(null);
+    const justOpenedOnFocus = useRef(false);
+
+    // Filter options by typed query (searchable) or typed value (allowCustom)
+    const visible = useMemo(() => {
+        if (searchable) {
+            const q = normalize(query);
+            return q ? options.filter((o) => normalize(`${o.label} ${o.hint ?? ''}`).includes(q)) : options;
+        }
+        if (!allowCustom) return options;
+        const q = value.trim().toLowerCase();
+        return q ? options.filter((o) => o.label.toLowerCase().includes(q)) : options;
+    }, [options, value, allowCustom, searchable, query]);
 
     const selected = options.find((o) => o.value === value);
 
-    // Filter options by typed value (allowCustom) or temporary search query (!allowCustom)
-    const visible = useMemo(() => {
-        const raw = allowCustom ? value : query;
-        const q = raw.trim().toLowerCase();
-        return q ? options.filter((o) => o.label.toLowerCase().includes(q)) : options;
-    }, [options, value, query, allowCustom]);
-
     const open = () => {
         if (wrapperRef.current) setRect(wrapperRef.current.getBoundingClientRect());
-        setQuery('');
         setIsOpen(true);
         setActiveIndex(-1);
+        setQuery(''); // a searchable list always opens complete
     };
 
     const close = () => {
@@ -68,6 +85,25 @@ export default function Combobox({
         if (option.disabled) return;
         onChange(option.value);
         close();
+    };
+
+    const handleInputFocus = () => {
+        if (!isOpen) {
+            justOpenedOnFocus.current = true;
+            open();
+        }
+    };
+
+    const handleInputClick = () => {
+        if (justOpenedOnFocus.current) {
+            justOpenedOnFocus.current = false;
+            return;
+        }
+        if (isOpen) {
+            close();
+        } else {
+            open();
+        }
     };
 
     // Close when clicking elsewhere, scrolling the page/list behind, or resizing
@@ -119,6 +155,9 @@ export default function Combobox({
         } else if (e.key === 'Enter' && isOpen && activeIndex >= 0 && visible[activeIndex]) {
             e.preventDefault(); // pick the highlighted option instead of submitting the form
             pick(visible[activeIndex]);
+        } else if (e.key === 'Enter' && searchable && isOpen) {
+            e.preventDefault(); // never submit the form from the search box; a single match is picked
+            if (visible.length === 1) pick(visible[0]);
         } else if (e.key === 'Escape' && isOpen) {
             e.preventDefault();
             e.stopPropagation();
@@ -151,61 +190,114 @@ export default function Combobox({
         };
     }
 
-    // In strict mode, show live search query while open, otherwise show the selected label
-    const displayValue = allowCustom
-        ? value
-        : isOpen
-            ? query
-            : (selected?.label ?? '');
-
-    // When open in strict mode, show the current selection as a faint placeholder hint
-    const activePlaceholder = !allowCustom && isOpen && selected ? selected.label : placeholder;
-
     return (
         <div ref={wrapperRef} style={{ position: 'relative', minWidth: 0, ...style }}>
-            <input
-                type="text"
-                value={displayValue}
-                maxLength={maxLength}
-                placeholder={activePlaceholder}
-                autoComplete="off"
-                onChange={(e) => {
-                    const next = e.target.value;
-                    if (allowCustom) {
-                        onChange(next);
-                    } else {
-                        setQuery(next);
-                    }
-                    if (!isOpen) {
-                        if (wrapperRef.current) setRect(wrapperRef.current.getBoundingClientRect());
-                        setIsOpen(true);
-                    }
-                    setActiveIndex(-1);
-                }}
-                onFocus={() => !isOpen && open()}
-                onClick={() => !isOpen && open()}
-                onBlur={() => close()}
-                onKeyDown={handleKeyDown}
-                style={{
-                    ...inputStyle,
-                    borderColor,
-                    paddingRight: allowCustom ? inputStyle.paddingRight : '26px',
-                }}
-            />
-
-            {!allowCustom && (
-                <span
+            {searchable ? (
+                <>
+                    <input
+                        type="text"
+                        value={isOpen ? query : selected?.label ?? ''}
+                        placeholder={selected ? selected.label : placeholder}
+                        autoComplete="off"
+                        onChange={(e) => {
+                            setQuery(e.target.value);
+                            if (!isOpen) open();
+                            setActiveIndex(-1);
+                        }}
+                        onFocus={handleInputFocus}
+                        onClick={handleInputClick}
+                        onKeyDown={handleKeyDown}
+                        style={{ ...inputStyle, borderColor, paddingRight: '32px', textOverflow: 'ellipsis' }}
+                    />
+                    {selected && clearable ? (
+                        <button
+                            type="button"
+                            title={clearTitle}
+                            aria-label={clearTitle}
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                                onChange('');
+                                close();
+                            }}
+                            style={{
+                                position: 'absolute',
+                                right: '6px',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                width: '22px',
+                                height: '22px',
+                                padding: 0,
+                                border: 'none',
+                                borderRadius: '4px',
+                                background: 'transparent',
+                                color: c.textMuted,
+                                cursor: 'pointer',
+                            }}
+                        >
+                            ✕
+                        </button>
+                    ) : (
+                        <span
+                            aria-hidden="true"
+                            style={{
+                                position: 'absolute',
+                                right: '10px',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                color: c.accentBright,
+                                pointerEvents: 'none',
+                            }}
+                        >
+                            ▾
+                        </span>
+                    )}
+                </>
+            ) : allowCustom ? (
+                <input
+                    type="text"
+                    value={value}
+                    maxLength={maxLength}
+                    placeholder={placeholder}
+                    autoComplete="off"
+                    onChange={(e) => {
+                        onChange(e.target.value);
+                        if (!isOpen) open();
+                        setActiveIndex(-1);
+                    }}
+                    onFocus={handleInputFocus}
+                    onClick={handleInputClick}
+                    onKeyDown={handleKeyDown}
+                    style={{ ...inputStyle, borderColor }}
+                />
+            ) : (
+                <button
+                    type="button"
+                    onClick={() => (isOpen ? close() : open())}
+                    onKeyDown={handleKeyDown}
                     style={{
-                        position: 'absolute',
-                        right: '10px',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        color: c.accentBright,
-                        pointerEvents: 'none',
+                        ...inputStyle,
+                        borderColor,
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        textAlign: 'left',
+                        cursor: 'pointer',
                     }}
                 >
-                    ▾
-                </span>
+                    <span
+                        style={{
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            color: selected ? c.text : c.textMuted,
+                        }}
+                    >
+                        {selected ? selected.label : placeholder}
+                    </span>
+                    <span aria-hidden="true" style={{ color: c.accentBright, marginLeft: '8px' }}>
+                        ▾
+                    </span>
+                </button>
             )}
 
             {listStyle &&

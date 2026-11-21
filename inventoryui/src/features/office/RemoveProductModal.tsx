@@ -188,6 +188,7 @@ export default function RemoveProductModal({
                 >
                     <div style={{ flex: 1 }}>
                         <Combobox
+                            searchable
                             value={selectedProductId}
                             onChange={setSelectedProductId}
                             placeholder={t('rmProd.search')}
