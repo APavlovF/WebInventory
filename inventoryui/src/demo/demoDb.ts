@@ -1,7 +1,9 @@
 // src/demo/demoDb.ts
 // The demo "database": plain data kept in memory and mirrored to sessionStorage, so a page refresh
 // keeps it but closing the tab/browser loses it. It mirrors the C# entities, one list per table.
+// A new session starts as a COPY of the starting lists in demoSeedData.ts (see demoSeed.ts).
 import { NO_MAX_LIMIT } from '../types/inventory';
+import { buildSeedDb, SEED_HASH } from './demoSeed';
 
 export interface DemoUnit { id: number; name: string; measurement: string; sku: string }
 export interface DemoUnitStock {
@@ -36,6 +38,7 @@ export interface DemoProductStock {
 export interface DemoCommission { id: number; name: string; rate: number }
 
 export interface DemoDb {
+    seedHash: string; // which version of the starting data this copy was made from
     nextId: number; // one counter for every table, so ids never repeat
     units: DemoUnit[];
     unitStocks: DemoUnitStock[];
@@ -51,6 +54,7 @@ const STORAGE_KEY = 'demo_db_v1';
 let memoryDb: DemoDb | null = null;
 
 const emptyDb = (): DemoDb => ({
+    seedHash: SEED_HASH,
     nextId: 1,
     units: [],
     unitStocks: [],
@@ -62,6 +66,7 @@ const emptyDb = (): DemoDb => ({
 function looksValid(x: any): x is DemoDb {
     return (
         x &&
+        x.seedHash === SEED_HASH && // a copy of older starting data (or an older schema) is replaced
         typeof x.nextId === 'number' &&
         Array.isArray(x.units) &&
         Array.isArray(x.unitStocks) &&
@@ -69,6 +74,16 @@ function looksValid(x: any): x is DemoDb {
         Array.isArray(x.productStocks) &&
         Array.isArray(x.commissions)
     );
+}
+
+// A brand-new copy of the starting data (an empty demo if the starting data cannot be built)
+function freshDb(): DemoDb {
+    try {
+        return buildSeedDb();
+    } catch (err) {
+        console.error('[demo seed] could not be built, starting empty:', err);
+        return emptyDb();
+    }
 }
 
 export function loadDb(): DemoDb {
@@ -85,7 +100,7 @@ export function loadDb(): DemoDb {
     } catch {
         /* storage unavailable or corrupted: start empty */
     }
-    memoryDb = emptyDb();
+    memoryDb = freshDb();
     return memoryDb;
 }
 
@@ -102,8 +117,8 @@ export function restoreDb(snapshot: string): void {
     memoryDb = JSON.parse(snapshot);
 }
 
-/** Wipes the demo data (not used yet: handy for a future "Reset demo" button) */
+/** Throws away the visitor's changes and starts again from the starting data (handy for a "Reset demo" button) */
 export function resetDemoDb(): void {
-    memoryDb = emptyDb();
+    memoryDb = freshDb();
     saveDb();
 }

@@ -177,6 +177,7 @@ export const ru: Record<TKey, string> = {
     'addType.wholesalePrice': 'Оптовая цена:',
     'addType.retailPrice': 'Розничная цена:',
     'addType.save': 'Сохранить тип продукта',
+    'addType.saveChanges': 'Сохранить изменения',
     'addType.errFailed': 'Не удалось сохранить продукт ({status})',
     'addType.errSaving': 'Ошибка при сохранении продукта в базе данных.',
     'rmMat.title': 'Удаление материалов',

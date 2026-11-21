@@ -177,6 +177,7 @@ export const pt: Record<TKey, string> = {
     'addType.wholesalePrice': 'Preço de atacado:',
     'addType.retailPrice': 'Preço de varejo:',
     'addType.save': 'Salvar tipo de produto',
+    'addType.saveChanges': 'Salvar alterações',
     'addType.errFailed': 'Falha ao salvar o produto ({status})',
     'addType.errSaving': 'Erro ao salvar o produto no banco de dados.',
     'rmMat.title': 'Remover materiais',

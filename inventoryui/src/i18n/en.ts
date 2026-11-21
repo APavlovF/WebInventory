@@ -176,6 +176,7 @@ export const en = {
     'addType.wholesalePrice': 'Wholesale Price:',
     'addType.retailPrice': 'Retail Price:',
     'addType.save': 'Save Product Type',
+    'addType.saveChanges': 'Save changes',
     'addType.errFailed': 'Failed to save product ({status})',
     'addType.errSaving': 'Error saving product to database.',
     'rmMat.title': 'Remove Materials',

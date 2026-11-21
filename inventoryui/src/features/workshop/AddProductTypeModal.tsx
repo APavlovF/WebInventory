@@ -19,6 +19,7 @@ import type { Product, Unit, UnitStock } from '../../types/inventory';
 import '../shared/modalForm.css';
 import { c as clr, alpha } from '../../theme/themes';
 import { useI18n } from '../../i18n/I18nContext';
+import SpinnerButton from '../shared/SpinnerButton';
 
 export interface Commission {
     id?: number;
@@ -31,9 +32,13 @@ interface AddProductTypeModalProps {
     materials: Unit[];                         // Cached units ("materials") from DB
     materialStocks?: UnitStock[];              // Used to show unit price and compute product cost
     availableCommissions?: Commission[];       // Existing commissions from DB
+    products?: Product[];                      // Existing product types, so one of them can be edited
     onClose: () => void;
     onSuccess: (newProduct: Product) => void;
 }
+
+// What the server may send for a product: markup, work cost and commissions are needed to edit it
+type EditableProduct = Product & { markup?: number; workCost?: number; commissions?: Commission[] };
 
 interface MaterialRow {
     rowId: string;
@@ -79,10 +84,12 @@ export default function AddProductTypeModal({
     materials,
     materialStocks = [],
     availableCommissions = [],
+    products = [],
     onClose,
     onSuccess,
 }: AddProductTypeModalProps) {
     const { t } = useI18n();
+    const [editingId, setEditingId] = useState<number | null>(null); // null = creating a new product type
     const [productName, setProductName] = useState('');
     const [sku, setSku] = useState('');
     const [markupPercent, setMarkupPercent] = useState('0');
@@ -110,6 +117,26 @@ export default function AddProductTypeModal({
         });
         return map;
     }, [availableCommissions]);
+
+    // Product types that can be edited (removed ones are not listed)
+    const editableProducts = useMemo(
+        () => products.filter((p) => !p.isDeleted).sort((a, b) => a.name.localeCompare(b.name)),
+        [products]
+    );
+    const editingProduct = useMemo(
+        () => (editingId === null ? undefined : (products.find((p) => p.id === editingId) as EditableProduct | undefined)),
+        [products, editingId]
+    );
+
+    // The dropdown materials, plus any material of the edited recipe that is no longer in stock
+    const allMaterials = useMemo(() => {
+        const map = new Map<number, Unit>();
+        materials.forEach((m) => map.set(m.id, m));
+        editingProduct?.items.forEach((i) => {
+            if (!map.has(i.unit.id)) map.set(i.unit.id, i.unit);
+        });
+        return Array.from(map.values());
+    }, [materials, editingProduct]);
 
     // Live Wholesale & Retail price preview matching C# logic
     const { materialsTotalCost, wholesalePrice, retailPrice } = useMemo(() => {
@@ -153,6 +180,7 @@ export default function AddProductTypeModal({
     if (!isOpen) return null;
 
     const resetForm = () => {
+        setEditingId(null);
         setProductName('');
         setSku('');
         setMarkupPercent('0');
@@ -167,6 +195,38 @@ export default function AddProductTypeModal({
         if (isSubmitting) return;
         resetForm();
         onClose();
+    };
+
+    // Pick an existing product type to edit: the form is filled from it.
+    // Clearing the box goes back to creating a new one.
+    const handlePickProduct = (idStr: string) => {
+        if (idStr === '') {
+            resetForm();
+            return;
+        }
+        const p = editableProducts.find((x) => String(x.id) === idStr) as EditableProduct | undefined;
+        if (!p) return;
+
+        setEditingId(p.id);
+        setProductName(p.name);
+        setSku(p.sku);
+        setMarkupPercent(String(round(((p.markup ?? 1) - 1) * 100)));
+        setRetailRatePercent(String(round(((p.retailRate ?? 1) - 1) * 100)));
+        setWorkCost(String(p.workCost ?? 0));
+        setRows(
+            p.items.length > 0
+                ? p.items.map((i) => ({ rowId: crypto.randomUUID(), unitId: String(i.unit.id), quantity: String(i.quantity) }))
+                : [newMaterialRow()]
+        );
+        setCommissionRows(
+            (p.commissions ?? []).map((cm) => ({
+                rowId: crypto.randomUUID(),
+                commissionId: cm.id,
+                name: cm.name,
+                percent: String(round(cm.rate * 100)),
+            }))
+        );
+        setApiError(null);
     };
 
     // Material row handlers
@@ -233,6 +293,15 @@ export default function AddProductTypeModal({
     const isRetailValid = retailRatePercent.trim() !== '' && Number.isFinite(retailNum);
     const isWorkCostValid = workCost.trim() !== '' && Number.isFinite(workCostNum) && workCostNum >= 0;
 
+    // The server finds products by name, so two products must never share one
+    const nameTaken =
+        productName.trim() !== '' &&
+        products.some((p) => !p.isDeleted && p.id !== editingId && normalize(p.name) === normalize(productName));
+    // Old products may come without the data that built their price: the fields then start at 0
+    const missingPricing =
+        editingProduct !== undefined &&
+        (editingProduct.markup === undefined || editingProduct.workCost === undefined || editingProduct.commissions === undefined);
+
     const areMaterialsValid =
         rows.length > 0 &&
         rows.every((r) => r.unitId !== '' && r.quantity.trim() !== '' && Number(r.quantity) > 0);
@@ -262,6 +331,7 @@ export default function AddProductTypeModal({
 
     const isFormValid =
         productName.trim().length > 0 &&
+        !nameTaken &&
         sku.trim().length > 0 &&
         isMarkupValid &&
         isRetailValid &&
@@ -278,6 +348,7 @@ export default function AddProductTypeModal({
 
         // Matches C# Product { Name, Sku, Markup, RetailRate, WorkCost, Price, Commissions, Items }
         const payload = {
+            ...(editingId !== null ? { id: editingId } : {}),
             name: productName.trim(),
             sku: sku.trim(),
             markup: round(1 + markupNum / 100),
@@ -290,13 +361,13 @@ export default function AddProductTypeModal({
                 rate: round(Number(c.percent) / 100),
             })),
             items: rows.map((r) => {
-                const unit = materials.find((m) => String(m.id) === r.unitId)!;
+                const unit = allMaterials.find((m) => String(m.id) === r.unitId)!;
                 return { quantity: Number(r.quantity), unit };
             }),
         };
 
         try {
-            const response = await apiFetch('/api/product/add', {
+            const response = await apiFetch(editingId === null ? '/api/product/add' : '/api/product/update', {
                 method: 'POST',
                 body: JSON.stringify(payload),
             });
@@ -324,10 +395,30 @@ export default function AddProductTypeModal({
         <div style={overlayStyle}>
             <div className="modal-form" style={modalStyle}>
                 <h3 style={{ margin: '0 0 16px 0', color: clr.accentBright, textAlign: 'center' }}>
-                    {t('addType.title')}
+                    {editingId === null ? t('addType.title') : t('addType.titleEdit')}
                 </h3>
 
                 <form onSubmit={handleSubmit}>
+                    {/* Pick an existing product type to edit it (hidden while there is none) */}
+                    {editableProducts.length > 0 && (
+                        <div style={{ marginBottom: '14px' }}>
+                            <Combobox
+                                searchable
+                                clearable
+                                clearTitle={t('common.clear')}
+                                value={editingId === null ? '' : String(editingId)}
+                                onChange={handlePickProduct}
+                                placeholder={t('addType.editProduct')}
+                                options={editableProducts.map((p) => ({ value: String(p.id), label: p.name, hint: p.sku }))}
+                            />
+                            {missingPricing && (
+                                <div style={{ color: clr.warning, fontSize: '12px', marginTop: '6px', paddingLeft: '4px' }}>
+                                    {t('addType.missingPricing')}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {/* Row 1: Product Name + SKU in one line */}
                     <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
                         <div style={{ flex: 2 }}>
@@ -338,9 +429,14 @@ export default function AddProductTypeModal({
                                 onChange={(e) => setProductName(e.target.value)}
                                 placeholder={t('addType.placeholderName')}
                                 maxLength={1000}
-                                style={inputStyle}
+                                style={{ ...inputStyle, borderColor: nameTaken ? clr.danger : alpha('accent', 0.4) }}
                                 required
                             />
+                            {nameTaken && (
+                                <div style={{ color: clr.danger, fontSize: '12px', marginTop: '4px', paddingLeft: '4px' }}>
+                                    {t('addType.nameTaken')}
+                                </div>
+                            )}
                         </div>
 
                         <div style={{ flex: 1 }}>
@@ -438,7 +534,7 @@ export default function AddProductTypeModal({
                                                 onChange={(v) => handleRowChange(row.rowId, 'unitId', v)}
                                                 placeholder={t('addType.selectMaterial')}
                                                 style={{ flex: 2 }}
-                                                options={materials.map((m) => {
+                                                options={allMaterials.map((m) => {
                                                     const price = unitPrices.get(m.id);
                                                     const baseLabel = m.measurement ? `${m.name} (${m.measurement})` : m.name;
                                                     return {
@@ -511,11 +607,11 @@ export default function AddProductTypeModal({
                             <button
                                 type="button"
                                 onClick={handleAddRow}
-                                disabled={rows.length >= materials.length}
+                                disabled={rows.length >= allMaterials.length}
                                 style={{
                                     ...addBtnStyle,
-                                    opacity: rows.length >= materials.length ? 0.5 : 1,
-                                    cursor: rows.length >= materials.length ? 'not-allowed' : 'pointer',
+                                    opacity: rows.length >= allMaterials.length ? 0.5 : 1,
+                                    cursor: rows.length >= allMaterials.length ? 'not-allowed' : 'pointer',
                                 }}
                             >
                                 {t('common.addMaterial')}
@@ -637,17 +733,15 @@ export default function AddProductTypeModal({
                         <button type="button" onClick={handleClose} style={cancelBtnStyle}>
                             {t('common.cancel')}
                         </button>
-                        <button
+                        <SpinnerButton
                             type="submit"
-                            disabled={!isFormValid || isSubmitting}
-                            style={{
-                                ...submitBtnStyle,
-                                opacity: !isFormValid || isSubmitting ? 0.5 : 1,
-                                cursor: !isFormValid || isSubmitting ? 'not-allowed' : 'pointer',
-                            }}
+                            disabled={!isFormValid}
+                            loading={isSubmitting}
+                            loadingText={t('common.saving')}
+                            style={submitBtnStyle}
                         >
-                            {isSubmitting ? t('common.saving') : t('addType.save')}
-                        </button>
+                            {editingId === null ? t('addType.save') : t('addType.saveChanges')}
+                        </SpinnerButton>
                     </div>
                 </form>
             </div>

@@ -43,6 +43,10 @@ const stockDto = (db: DemoDb, s: DemoUnitStock) => ({
 
 const productDto = (db: DemoDb, p: DemoProduct) => ({
     id: p.id,
+    commissions: p.commissionIds
+        .map((id) => db.commissions.find((x) => x.id === id))
+        .filter((x) => x !== undefined)
+        .map((x) => ({ id: x!.id, name: x!.name, rate: x!.rate })),
     isDeleted: p.isDeleted,
     name: p.name,
     price: p.price,
@@ -94,39 +98,45 @@ const READ: Record<string, Handler> = {
     '/api/office/fetch': (db) => json(db.commissions),
 };
 
+// Shared by /add and /update: checks the units of the recipe and resolves the commissions
+// (ResolveCommissions: an existing id is reused, new ones are created once per name and rate)
+function resolveProductParts(db: DemoDb, p: any): { items: DemoItem[]; commissionIds: number[] } | Response {
+    const items: DemoItem[] = [];
+    for (const item of p.items ?? []) {
+        const unit = db.units.find((u) => u.id === item.unit?.id);
+        if (!unit) return text(`Unit ${item.unit?.id} does not exist.`, 400);
+        items.push({ id: db.nextId++, quantity: Number(item.quantity), unitId: unit.id });
+    }
+
+    const createdByKey = new Map<string, number>();
+    const commissionIds: number[] = [];
+    for (const c of p.commissions ?? []) {
+        if (c.id > 0 && db.commissions.some((x) => x.id === c.id)) {
+            commissionIds.push(c.id);
+            continue;
+        }
+        const name = String(c.name).trim();
+        const rate = Number(c.rate);
+        const key = `${name}|${rate}`;
+        let id = createdByKey.get(key);
+        if (id === undefined) {
+            id = db.nextId++;
+            db.commissions.push({ id, name, rate });
+            createdByKey.set(key, id);
+        }
+        commissionIds.push(id);
+    }
+    return { items, commissionIds };
+}
+
 // ---------- writes ----------
 
 const WRITE: Record<string, Handler> = {
     // ProductController.CreateProduct
     '/api/product/add': (db, p) => {
         if (!p) return text('Product data is required.', 400);
-
-        const items: DemoItem[] = [];
-        for (const item of p.items ?? []) {
-            const unit = db.units.find((u) => u.id === item.unit?.id);
-            if (!unit) return text(`Unit ${item.unit?.id} does not exist.`, 400);
-            items.push({ id: db.nextId++, quantity: Number(item.quantity), unitId: unit.id });
-        }
-
-        // ResolveCommissions: an existing id is reused, new ones are created once per (name, rate)
-        const createdByKey = new Map<string, number>();
-        const commissionIds: number[] = [];
-        for (const c of p.commissions ?? []) {
-            if (c.id > 0 && db.commissions.some((x) => x.id === c.id)) {
-                commissionIds.push(c.id);
-                continue;
-            }
-            const name = String(c.name).trim();
-            const rate = Number(c.rate);
-            const key = `${name}|${rate}`;
-            let id = createdByKey.get(key);
-            if (id === undefined) {
-                id = db.nextId++;
-                db.commissions.push({ id, name, rate });
-                createdByKey.set(key, id);
-            }
-            commissionIds.push(id);
-        }
+        const parts = resolveProductParts(db, p);
+        if (parts instanceof Response) return parts;
 
         const product: DemoProduct = {
             id: db.nextId++,
@@ -137,11 +147,37 @@ const WRITE: Record<string, Handler> = {
             markup: Number(p.markup ?? 1),
             workCost: Number(p.workCost ?? 0),
             isDeleted: false,
-            items,
-            commissionIds,
+            items: parts.items,
+            commissionIds: parts.commissionIds,
         };
         db.products.push(product);
         return json(productDto(db, product), 201);
+    },
+
+    // Edit an existing product type: same body as /add plus the product's id. The recipe (items) and the
+    // commissions are replaced by the ones sent; the product's stock is untouched.
+    '/api/product/update': (db, p) => {
+        if (!p) return text('Product data is required.', 400);
+        const product = db.products.find((x) => x.id === p.id && !x.isDeleted);
+        if (!product) return text(`Product ${p.id} does not exist.`, 404);
+
+        const name = String(p.name).trim().toLowerCase();
+        if (db.products.some((x) => x.id !== product.id && !x.isDeleted && x.name.trim().toLowerCase() === name)) {
+            return text(`A product named "${p.name}" already exists.`, 409);
+        }
+
+        const parts = resolveProductParts(db, p);
+        if (parts instanceof Response) return parts;
+
+        product.name = String(p.name);
+        product.sku = String(p.sku);
+        product.price = Number(p.price);
+        product.retailRate = Number(p.retailRate);
+        product.markup = Number(p.markup ?? 1);
+        product.workCost = Number(p.workCost ?? 0);
+        product.items = parts.items;
+        product.commissionIds = parts.commissionIds;
+        return json(productDto(db, product));
     },
 
     // ProductController.AddBatch: adds product stock and consumes the recipe's materials

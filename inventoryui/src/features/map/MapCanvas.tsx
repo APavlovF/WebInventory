@@ -263,6 +263,7 @@ export default function MapCanvas({ onBuildingClick }: MapCanvasProps) {
                 materials={units}
                 materialStocks={unitStocks}
                 availableCommissions={commissions}
+                products={products}
                 onClose={() => setActiveModal(null)}
                 onSuccess={() => refresh()}
             />
