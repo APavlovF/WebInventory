@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import { readFileSync } from 'fs';
+import { execSync } from 'child_process';
 import plugin from '@vitejs/plugin-react';
 
 // Version shown in the app, first match wins:
@@ -28,12 +29,12 @@ const appVersion =
 // https://vitejs.dev/config/
 export default defineConfig({
     plugins: [plugin()],
-	define: {
+    define: {
         __APP_VERSION__: JSON.stringify(appVersion),
     },
-	base: '/WebInventory/',
+    base: '/WebInventory/',
     server: {
         port: 56951,
-		strictPort: true
+        strictPort: true
     }
 })
