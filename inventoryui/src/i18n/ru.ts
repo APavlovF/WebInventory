@@ -223,6 +223,7 @@ export const ru: Record<TKey, string> = {
     'warehouse.semaphore.reasonEmpty': 'Нет в наличии (Мин. порог: {{low}})',
     'warehouse.semaphore.reasonLow': 'Низкий запас (≤ {{low}})',
     'warehouse.semaphore.reasonMax': 'Превышен макс. порог ({{max}})',
+    'warehouse.semaphore.usedIn': 'Товары:',
 
     'logo.uploadHover': 'Загрузить логотип',
     'logo.alt': 'Логотип компании',

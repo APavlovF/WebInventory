@@ -223,6 +223,7 @@ export const pt: Record<TKey, string> = {
     'warehouse.semaphore.reasonEmpty': 'Estoque zerado (Alerta mínimo: {{low}})',
     'warehouse.semaphore.reasonLow': 'Estoque baixo (≤ {{low}})',
     'warehouse.semaphore.reasonMax': 'Excede o alerta máximo ({{max}})',
+    'warehouse.semaphore.usedIn': 'Usado em:',
 
     'logo.uploadHover': 'Enviar seu logotipo',
     'logo.alt': 'Logotipo da empresa',

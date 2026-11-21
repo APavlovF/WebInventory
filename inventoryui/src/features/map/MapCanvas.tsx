@@ -25,7 +25,7 @@ export default function MapCanvas({ onBuildingClick }: MapCanvasProps) {
     const [dimensions, setDimensions] = useState<MapDimensions>({ width: 1200, height: 800 });
     const [autoImport, setAutoImport] = useState(false);
     const [activeModal, setActiveModal] = useState<ActiveMapModal>(null);
-    const { productStocks, unitStocks } = useInventoryStore();
+    const { productStocks, unitStocks, products } = useInventoryStore();
 
     useEffect(() => {
         const handleResize = () => {
@@ -95,6 +95,7 @@ export default function MapCanvas({ onBuildingClick }: MapCanvasProps) {
                 left={`${landmarks.warehouse.x + 65}px`}
                 unitStocks={unitStocks}
                 productStocks={productStocks}
+                products={products}
             />
             <BuildingNode
                 name="Office"

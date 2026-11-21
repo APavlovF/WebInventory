@@ -1,7 +1,12 @@
 // src/features/warehouse/WarehouseSemaphore.tsx
 import { useState } from 'react';
 import { alpha } from '../../theme/themes';
-import type { ProductStock, UnitStock } from '../../types/inventory';
+import {
+    hasMaxStockLimit,
+    type Product,
+    type ProductStock,
+    type UnitStock,
+} from '../../types/inventory';
 import { useI18n } from '../../i18n/I18nContext';
 import {
     overlayStyle,
@@ -17,6 +22,7 @@ interface WarehouseSemaphoreProps {
     left: string;
     unitStocks: UnitStock[];
     productStocks: ProductStock[];
+    products?: Product[];
 }
 
 type LightColor = 'red' | 'yellow' | 'green';
@@ -28,20 +34,28 @@ interface StockAlertItem {
     quantity: number;
     status: 'red' | 'yellow';
     reason: string;
+    affectedProducts?: string[];
 }
-
-const INT32_MAX = 2147483647;
-const isDefaultMax = (val: number) =>
-    !val || val >= INT32_MAX || val >= Number.MAX_SAFE_INTEGER;
 
 export default function WarehouseSemaphore({
     top,
     left,
     unitStocks,
     productStocks,
+    products = [],
 }: WarehouseSemaphoreProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const { t } = useI18n();
+
+    const getAffectedProducts = (unitId: number): string[] => {
+        return products
+            .filter(
+                (p) =>
+                    !p.isDeleted &&
+                    p.items?.some((item) => item.unit?.id === unitId)
+            )
+            .map((p) => p.name);
+    };
 
     const evaluateStocks = (): { status: LightColor; issues: StockAlertItem[] } => {
         const issues: StockAlertItem[] = [];
@@ -50,32 +64,29 @@ export default function WarehouseSemaphore({
         unitStocks
             .filter((s) => !s.isDeleted)
             .forEach((s) => {
+                let itemStatus: 'red' | 'yellow' | null = null;
+                let reason = '';
+
                 if (s.lowStockAlert > 0 && s.quantity <= 0) {
-                    issues.push({
-                        id: `mat-${s.id}`,
-                        name: s.unit.name,
-                        category: 'Material',
-                        quantity: s.quantity,
-                        status: 'red',
-                        reason: t('warehouse.semaphore.reasonEmpty', { low: s.lowStockAlert }),
-                    });
+                    itemStatus = 'red';
+                    reason = t('warehouse.semaphore.reasonEmpty', { low: s.lowStockAlert });
                 } else if (s.lowStockAlert > 0 && s.quantity <= s.lowStockAlert) {
+                    itemStatus = 'yellow';
+                    reason = t('warehouse.semaphore.reasonLow', { low: s.lowStockAlert });
+                } else if (hasMaxStockLimit(s.maxStockAlert) && s.quantity > s.maxStockAlert) {
+                    itemStatus = 'yellow';
+                    reason = t('warehouse.semaphore.reasonMax', { max: s.maxStockAlert });
+                }
+
+                if (itemStatus) {
                     issues.push({
                         id: `mat-${s.id}`,
                         name: s.unit.name,
                         category: 'Material',
                         quantity: s.quantity,
-                        status: 'yellow',
-                        reason: t('warehouse.semaphore.reasonLow', { low: s.lowStockAlert }),
-                    });
-                } else if (!isDefaultMax(s.maxStockAlert) && s.quantity > s.maxStockAlert) {
-                    issues.push({
-                        id: `mat-${s.id}`,
-                        name: s.unit.name,
-                        category: 'Material',
-                        quantity: s.quantity,
-                        status: 'yellow',
-                        reason: t('warehouse.semaphore.reasonMax', { max: s.maxStockAlert }),
+                        status: itemStatus,
+                        reason,
+                        affectedProducts: getAffectedProducts(s.unit.id),
                     });
                 }
             });
@@ -100,7 +111,7 @@ export default function WarehouseSemaphore({
                     status: 'yellow',
                     reason: t('warehouse.semaphore.reasonLow', { low: s.lowStockAlert }),
                 });
-            } else if (!isDefaultMax(s.maxStockAlert) && s.quantity > s.maxStockAlert) {
+            } else if (hasMaxStockLimit(s.maxStockAlert) && s.quantity > s.maxStockAlert) {
                 issues.push({
                     id: `prod-${s.id}`,
                     name: `${s.product.name} (${s.product.sku})`,
@@ -120,6 +131,26 @@ export default function WarehouseSemaphore({
     };
 
     const { status, issues } = evaluateStocks();
+
+    const statusConfig: Record<LightColor, { color: string; label: string; desc: string }> = {
+        red: {
+            color: '#ef4444',
+            label: t('warehouse.semaphore.redLabel'),
+            desc: t('warehouse.semaphore.redDesc'),
+        },
+        yellow: {
+            color: '#eab308',
+            label: t('warehouse.semaphore.yellowLabel'),
+            desc: t('warehouse.semaphore.yellowDesc'),
+        },
+        green: {
+            color: '#22c55e',
+            label: t('warehouse.semaphore.greenLabel'),
+            desc: t('warehouse.semaphore.greenDesc'),
+        },
+    };
+
+    const activeStatus = statusConfig[status];
 
     return (
         <>
@@ -151,27 +182,9 @@ export default function WarehouseSemaphore({
                     />
                     <rect x="11.5" y="48" width="3" height="12" fill={alpha('accent', 0.6)} />
 
-                    {/* Red */}
-                    <circle
-                        cx="13"
-                        cy="12"
-                        r="5"
-                        fill={status === 'red' ? '#ef4444' : '#3b1818'}
-                    />
-                    {/* Yellow */}
-                    <circle
-                        cx="13"
-                        cy="25"
-                        r="5"
-                        fill={status === 'yellow' ? '#eab308' : '#3b3012'}
-                    />
-                    {/* Green */}
-                    <circle
-                        cx="13"
-                        cy="38"
-                        r="5"
-                        fill={status === 'green' ? '#22c55e' : '#133620'}
-                    />
+                    <circle cx="13" cy="12" r="5" fill={status === 'red' ? '#ef4444' : '#3b1818'} />
+                    <circle cx="13" cy="25" r="5" fill={status === 'yellow' ? '#eab308' : '#3b3012'} />
+                    <circle cx="13" cy="38" r="5" fill={status === 'green' ? '#22c55e' : '#133620'} />
                 </svg>
             </div>
 
@@ -179,41 +192,35 @@ export default function WarehouseSemaphore({
             {isModalOpen && (
                 <div style={overlayStyle} onClick={() => setIsModalOpen(false)}>
                     <div
-                        style={{ ...modalStyle, width: '460px', maxWidth: '90vw' }}
+                        style={{ ...modalStyle, width: '580px', maxWidth: '92vw' }}
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div style={headerLabelStyle}>{t('warehouse.semaphore.title')}</div>
 
-                        {/* Light Definition Legend */}
+                        {/* Current Color Status Banner */}
                         <div
                             style={{
                                 display: 'flex',
-                                flexDirection: 'column',
-                                gap: '8px',
-                                marginBottom: '16px',
-                                padding: '12px',
+                                alignItems: 'center',
+                                gap: '10px',
+                                marginBottom: '14px',
+                                padding: '10px 14px',
                                 borderRadius: '6px',
                                 backgroundColor: alpha('accent', 0.06),
                                 border: `1px solid ${alpha('accent', 0.2)}`,
                             }}
                         >
-                            <div style={{ ...labelStyle, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#ef4444', flexShrink: 0 }} />
-                                <span>
-                                    <strong>{t('warehouse.semaphore.redLabel')}:</strong> {t('warehouse.semaphore.redDesc')}
-                                </span>
-                            </div>
-                            <div style={{ ...labelStyle, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#eab308', flexShrink: 0 }} />
-                                <span>
-                                    <strong>{t('warehouse.semaphore.yellowLabel')}:</strong> {t('warehouse.semaphore.yellowDesc')}
-                                </span>
-                            </div>
-                            <div style={{ ...labelStyle, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#22c55e', flexShrink: 0 }} />
-                                <span>
-                                    <strong>{t('warehouse.semaphore.greenLabel')}:</strong> {t('warehouse.semaphore.greenDesc')}
-                                </span>
+                            <span
+                                style={{
+                                    width: 10,
+                                    height: 10,
+                                    borderRadius: '50%',
+                                    backgroundColor: activeStatus.color,
+                                    flexShrink: 0,
+                                }}
+                            />
+                            <div style={{ ...labelStyle, margin: 0, textAlign: 'left', fontSize: '0.9em' }}>
+                                <strong>{activeStatus.label}:</strong> {activeStatus.desc}
                             </div>
                         </div>
 
@@ -223,35 +230,88 @@ export default function WarehouseSemaphore({
                                 {t('warehouse.semaphore.allHealthy')}
                             </p>
                         ) : (
-                            <div style={{ ...scrollAreaStyle, maxHeight: '220px', marginBottom: '16px' }}>
+                            <div style={{ ...scrollAreaStyle, maxHeight: '300px', marginBottom: '16px' }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                     {issues.map((item) => (
                                         <div
                                             key={item.id}
                                             style={{
                                                 display: 'flex',
-                                                justifyContent: 'space-between',
-                                                alignItems: 'center',
-                                                padding: '8px 12px',
+                                                flexDirection: 'column',
+                                                gap: '4px',
+                                                padding: '10px 14px',
                                                 borderRadius: '6px',
                                                 backgroundColor: alpha('accent', 0.08),
                                                 borderLeft: `4px solid ${item.status === 'red' ? '#ef4444' : '#eab308'}`,
                                             }}
                                         >
-                                            <div>
-                                                <div style={{ ...labelStyle, margin: 0, fontWeight: 600 }}>
+                                            {/* Top Row: Name on left, Qty aligned cleanly on right */}
+                                            <div
+                                                style={{
+                                                    display: 'flex',
+                                                    justifyContent: 'space-between',
+                                                    alignItems: 'baseline',
+                                                    gap: '12px',
+                                                }}
+                                            >
+                                                <span
+                                                    style={{
+                                                        ...labelStyle,
+                                                        margin: 0,
+                                                        textAlign: 'left',
+                                                        fontWeight: 700,
+                                                    }}
+                                                >
                                                     {item.name}
-                                                </div>
-                                                <div style={{ ...labelStyle, margin: 0, opacity: 0.75, fontSize: '0.85em' }}>
-                                                    {item.category === 'Material'
-                                                        ? t('warehouse.semaphore.categoryMaterial')
-                                                        : t('warehouse.semaphore.categoryProduct')}{' '}
-                                                    • {item.reason}
-                                                </div>
+                                                </span>
+                                                <span
+                                                    style={{
+                                                        ...labelStyle,
+                                                        margin: 0,
+                                                        textAlign: 'right',
+                                                        fontWeight: 700,
+                                                        whiteSpace: 'nowrap',
+                                                    }}
+                                                >
+                                                    {t('warehouse.semaphore.qty', { quantity: item.quantity })}
+                                                </span>
                                             </div>
-                                            <span style={{ ...labelStyle, margin: 0, fontWeight: 700 }}>
-                                                {t('warehouse.semaphore.qty', { quantity: item.quantity })}
-                                            </span>
+
+                                            {/* Second Row: Category & Reason */}
+                                            <div
+                                                style={{
+                                                    ...labelStyle,
+                                                    margin: 0,
+                                                    textAlign: 'left',
+                                                    opacity: 0.75,
+                                                    fontSize: '0.84em',
+                                                }}
+                                            >
+                                                {item.category === 'Material'
+                                                    ? t('warehouse.semaphore.categoryMaterial')
+                                                    : t('warehouse.semaphore.categoryProduct')}{' '}
+                                                • {item.reason}
+                                            </div>
+
+                                            {/* Third Row: Plain text list of affected products */}
+                                            {item.affectedProducts && item.affectedProducts.length > 0 && (
+                                                <div
+                                                    style={{
+                                                        ...labelStyle,
+                                                        margin: 0,
+                                                        marginTop: '2px',
+                                                        textAlign: 'left',
+                                                        fontSize: '0.82em',
+                                                        opacity: 0.9,
+                                                        lineHeight: 1.4,
+                                                    }}
+                                                >
+                                                    <span style={{ opacity: 0.7 }}>
+                                                        {t('warehouse.semaphore.usedIn', { defaultValue: 'Used in:' })}{' '}
+                                                    </span>
+                                                    {item.affectedProducts.join(', ')}
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
