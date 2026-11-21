@@ -214,6 +214,24 @@ const WRITE: Record<string, Handler> = {
         return ok();
     },
 
+    // Produce and sell in one step: the materials are used, but no product stock is added
+    '/api/product/batch-sell': (db, list) => {
+        const entries: any[] = Array.isArray(list) ? list : [];
+        const materials = unitStocksByName(db);
+
+        for (const entry of entries) {
+            const qty = Number(entry.quantity);
+            const product = db.products.find((p) => p.id === entry.product?.id && !p.isDeleted);
+            if (!product) return text(`Product ${entry.product?.id} does not exist.`, 400);
+
+            for (const item of product.items) {
+                const stock = materials.get(unitDto(db, item.unitId).name);
+                if (stock) stock.quantity = r6(stock.quantity - item.quantity * qty);
+            }
+        }
+        return ok();
+    },
+
     // MarketController.AddMaterials: weighted-average price for known materials, new stock otherwise
     '/api/market/materials': (db, list) => {
         const entries: any[] = Array.isArray(list) ? list : [];

@@ -11,48 +11,15 @@ namespace WebInventory.Controllers;
 [Route("api/product")]
 public class ProductController(EfDbContext context) : ControllerBase
 {
+    [Authorize]
+    [HttpPost("batch-sell")]
+    public async Task<IActionResult> CreateBatchAndSell([FromBody] List<ProductStock> products) =>
+        await ProcessBatchAsync(products, saveProducts: false);
 
     [Authorize]
     [HttpPost("batch")]
-    public async Task<IActionResult> AddBatch([FromBody] List<ProductStock> products)
-    {
-        int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        Dictionary<string, ProductStock> dbProducts = await context.ProductStocks.Where(p => p.Product.UserId == userId)
-            .Include(p => p.Product).ToDictionaryAsync(k => k.Product.Name);
-        Dictionary<string, UnitStock> dbMaterials = await context.UnitStocks.Where(u => u.UserId == userId)
-            .Include(u => u.Unit).ToDictionaryAsync(k => k.Unit.Name);
-        foreach (ProductStock productStock in products)
-        {
-            if (dbProducts.TryGetValue(productStock.Product.Name, out ProductStock p))
-            {
-                p.Quantity += productStock.Quantity;
-            }
-            else
-            {
-                Product dbProduct = await context.Products.Include(s => s.Items).ThenInclude(item => item.Unit)
-                    .SingleOrDefaultAsync(s => s.Id == productStock.Product.Id && s.UserId == userId);
-                if (dbProduct == null)
-                {
-                    return BadRequest($"Product {productStock.Product.Id} does not exist.");
-                }
-
-                productStock.Product = dbProduct;
-                context.ProductStocks.Add(productStock);
-            }
-
-            foreach (Item item in productStock.Product.Items)
-            {
-                if (dbMaterials.TryGetValue(item.Unit.Name, out UnitStock u))
-                {
-                    u.Quantity -= item.Quantity * productStock.Quantity;
-                }
-            }
-        }
-
-        await context.SaveChangesAsync();
-
-        return Ok();
-    }
+    public async Task<IActionResult> AddBatch([FromBody] List<ProductStock> products) =>
+        await ProcessBatchAsync(products, saveProducts: true);
 
     [Authorize]
     [HttpPost("add")]
@@ -64,7 +31,9 @@ public class ProductController(EfDbContext context) : ControllerBase
         }
 
         int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        product.UserId = userId;
+        string normalizedName = product.Name.Trim();
+
+        // Resolve units first so validation fails early if any unit is invalid
         foreach (Item item in product.Items)
         {
             Unit existingUnit = await context.Units.SingleOrDefaultAsync(u => u.Id == item.Unit.Id);
@@ -76,7 +45,48 @@ public class ProductController(EfDbContext context) : ControllerBase
             item.Unit = existingUnit;
         }
 
-        product.Commissions = await ResolveCommissions(product.Commissions, userId);
+        List<Commission> resolvedCommissions = await ResolveCommissions(product.Commissions, userId);
+        // Check if product already exists for this user (match by Name, or add Sku check if needed)
+        Product existingProduct = await context.Products
+            .Include(p => p.Items)
+            .Include(p => p.Commissions)
+            .FirstOrDefaultAsync(p => p.UserId == userId && p.Name.ToLower() == normalizedName.ToLower());
+
+        if (existingProduct != null)
+        {
+            if (!existingProduct.IsDeleted)
+            {
+                return Conflict($"Product '{normalizedName}' already exists.");
+            }
+
+            // Restore and update the soft-deleted product
+            existingProduct.IsDeleted = false;
+            existingProduct.Name = normalizedName;
+            existingProduct.Sku = product.Sku;
+            existingProduct.Price = product.Price;
+            existingProduct.RetailRate = product.RetailRate;
+
+            existingProduct.Items.Clear();
+            foreach (Item item in product.Items)
+            {
+                existingProduct.Items.Add(item);
+            }
+
+            existingProduct.Commissions.Clear();
+            foreach (Commission commission in resolvedCommissions)
+            {
+                existingProduct.Commissions.Add(commission);
+            }
+
+            await context.SaveChangesAsync();
+            return Ok(existingProduct);
+        }
+
+        product.Name = normalizedName;
+        product.UserId = userId;
+        product.IsDeleted = false;
+        product.Commissions = resolvedCommissions;
+
         context.Products.Add(product);
         await context.SaveChangesAsync();
 
@@ -85,8 +95,23 @@ public class ProductController(EfDbContext context) : ControllerBase
 
     [Authorize]
     [HttpPost("delete")]
-    public async Task<IActionResult> DeleteProducts()
+    public async Task<IActionResult> DeleteProducts([FromBody] DeleteListRequest request)
     {
+        if (request?.ListIds == null || request.ListIds.Count == 0)
+        {
+            return BadRequest("No product IDs provided.");
+        }
+
+        int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        int updatedCount = await context.Products
+            .Where(p => p.UserId == userId && request.ListIds.Contains(p.Id) && !p.IsDeleted)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(p => p.IsDeleted, true));
+
+        if (updatedCount == 0)
+        {
+            return NotFound();
+        }
+
         return Ok();
     }
 
@@ -95,8 +120,11 @@ public class ProductController(EfDbContext context) : ControllerBase
     public async Task<IActionResult> GetProducts()
     {
         int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        List<Product> products = await context.Products.Where(p => p.UserId == userId).Include(p => p.Items)
-            .ThenInclude(i => i.Unit).ToListAsync();
+        List<Product> products = await context.Products
+            .Where(p => p.UserId == userId && !p.IsDeleted)
+            .Include(p => p.Items)
+            .ThenInclude(i => i.Unit)
+            .ToListAsync();
 
         return Ok(products);
     }
@@ -106,8 +134,13 @@ public class ProductController(EfDbContext context) : ControllerBase
     public async Task<IActionResult> GetProductStock()
     {
         int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        List<ProductStock> products = await context.ProductStocks.Where(p => p.Product.UserId == userId)
-            .Include(s => s.Product).ThenInclude(p => p.Items).ThenInclude(i => i.Unit).ToListAsync();
+        List<ProductStock> products = await context.ProductStocks
+            .Where(p => p.Product.UserId == userId && !p.Product.IsDeleted)
+            .Include(s => s.Product)
+            .ThenInclude(p => p.Items)
+            .ThenInclude(i => i.Unit)
+            .ToListAsync();
+
         var result = products
             .Select(p => new
             {
@@ -128,6 +161,69 @@ public class ProductController(EfDbContext context) : ControllerBase
             .ToList();
 
         return Ok(result);
+    }
+
+    static void DeductMaterials(Product product, decimal quantity, Dictionary<string, UnitStock> dbMaterials)
+    {
+        foreach (Item item in product.Items)
+        {
+            if (dbMaterials.TryGetValue(item.Unit.Name, out UnitStock unitStock))
+            {
+                unitStock.Quantity -= item.Quantity * quantity;
+            }
+        }
+    }
+
+    async Task<Product> GetOrUpdateProductAsync(ProductStock productStock, int userId, Dictionary<string,
+        ProductStock> dbProducts, bool saveProducts)
+    {
+        if (saveProducts && dbProducts.TryGetValue(productStock.Product.Name, out ProductStock existingStock))
+        {
+            existingStock.Quantity += productStock.Quantity;
+            return existingStock.Product;
+        }
+
+        Product dbProduct = await context.Products
+            .Include(s => s.Items)
+            .ThenInclude(item => item.Unit)
+            .SingleOrDefaultAsync(s => s.Id == productStock.Product.Id && s.UserId == userId && !s.IsDeleted);
+
+
+        if (dbProduct == null || !saveProducts) return dbProduct;
+        productStock.Product = dbProduct;
+        context.ProductStocks.Add(productStock);
+
+        return dbProduct;
+    }
+
+    async Task<IActionResult> ProcessBatchAsync(List<ProductStock> products, bool saveProducts)
+    {
+        int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        Dictionary<string, UnitStock> dbMaterials = await context.UnitStocks
+            .Where(u => u.UserId == userId)
+            .Include(u => u.Unit)
+            .ToDictionaryAsync(k => k.Unit.Name);
+        Dictionary<string, ProductStock> dbProducts = saveProducts
+            ? await context.ProductStocks
+                .Where(p => p.Product.UserId == userId)
+                .Include(p => p.Product)
+                .ToDictionaryAsync(k => k.Product.Name)
+            : new Dictionary<string, ProductStock>();
+
+        foreach (ProductStock productStock in products)
+        {
+            Product dbProduct = await GetOrUpdateProductAsync(productStock, userId, dbProducts, saveProducts);
+            if (dbProduct == null)
+            {
+                return BadRequest($"Product {productStock.Product.Id} does not exist.");
+            }
+
+            DeductMaterials(dbProduct, productStock.Quantity, dbMaterials);
+        }
+
+        await context.SaveChangesAsync();
+
+        return Ok();
     }
 
     async Task<List<Commission>> ResolveCommissions(List<Commission> incoming, int userId)

@@ -29,6 +29,10 @@ const newRow = (): BatchRow => ({ rowId: crypto.randomUUID(), productId: '', qua
 
 const round = (n: number) => Math.round(n * 1e6) / 1e6;
 
+// Produce and keep the batch in stock, or produce and sell it right away (materials are used, nothing is stored)
+const BATCH_URL = '/api/product/batch';
+const BATCH_SELL_URL = '/api/product/batch-sell';
+
 export default function ProduceBatchModal({
     isOpen,
     products,
@@ -42,6 +46,8 @@ export default function ProduceBatchModal({
     const [rows, setRows] = useState<BatchRow[]>([newRow()]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [apiError, setApiError] = useState<string | null>(null);
+    // "Sell right away" stays as chosen while the page is open (small productions always sell)
+    const [sellNow, setSellNow] = useState(false);
 
     // Current stock per product id, summed from existing ProductStock records
     const stockByProductId = useMemo(() => {
@@ -119,7 +125,7 @@ export default function ProduceBatchModal({
             wholesaleSubtotal: product && qtyValid ? round(unitWholesale * qty) : 0,
             retailSubtotal: product && qtyValid ? round(unitRetail * qty) : 0,
             invalidRecipe: Boolean(product) && items.some((i) => !(i.quantity > 0)),
-            exceedsLimit: Boolean(product) && qtyValid && existing + qty > maxStock,
+            exceedsLimit: !sellNow && Boolean(product) && qtyValid && existing + qty > maxStock,
             lacksMaterials:
                 Boolean(product) && qtyValid && items.some((i) => insufficientUnitIds.has(i.unit.id)),
         };
@@ -176,8 +182,8 @@ export default function ProduceBatchModal({
         }));
 
         try {
-            // Replace with your AddBatch route
-            const response = await apiFetch('/api/product/batch', {
+            // Same body for both: AddBatch keeps the products in stock, the sell route only uses the materials
+            const response = await apiFetch(sellNow ? BATCH_SELL_URL : BATCH_URL, {
                 method: 'POST',
                 body: JSON.stringify(payload),
             });
@@ -239,9 +245,11 @@ export default function ProduceBatchModal({
                                                 const retail = round(p.price * (p.retailRate ?? 1));
                                                 return {
                                                     value: String(p.id),
-                                                    label: t('common.inStockMax', { name: p.name, stock: inStock, max: maxStock }),
+                                                    label: sellNow
+                                                        ? t('common.inStock', { name: p.name, stock: inStock })
+                                                        : t('common.inStockMax', { name: p.name, stock: inStock, max: maxStock }),
                                                     hint: `$${p.price.toFixed(2)} / $${retail.toFixed(2)}`,
-                                                    disabled: inStock >= maxStock || isTakenByOtherRow(info.row.rowId, p.id),
+                                                    disabled: (!sellNow && inStock >= maxStock) || isTakenByOtherRow(info.row.rowId, p.id),
                                                 };
                                             })}
                                         />
@@ -357,21 +365,66 @@ export default function ProduceBatchModal({
                         <div style={{ color: c.danger, fontSize: '13px', marginTop: '12px' }}>{apiError}</div>
                     )}
 
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
-                        <button type="button" onClick={handleClose} style={cancelBtnStyle}>
-                            {t('common.cancel')}
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={!isFormValid || isSubmitting}
+                    <div
+                        style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            gap: '12px 16px',
+                            marginTop: '20px',
+                        }}
+                    >
+                        {/* Produce and sell in one step: the products are not added to the stock */}
+                        <label
+                            title={t('produce.sellNowHint')}
                             style={{
-                                ...submitBtnStyle,
-                                opacity: !isFormValid || isSubmitting ? 0.5 : 1,
-                                cursor: !isFormValid || isSubmitting ? 'not-allowed' : 'pointer',
+                                display: 'flex',
+                                alignItems: 'flex-start',
+                                gap: '8px',
+                                maxWidth: '300px',
+                                color: c.textStrong,
+                                fontSize: '14px',
+                                cursor: 'pointer',
                             }}
                         >
-                            {isSubmitting ? t('produce.producing') : t('produce.title')}
-                        </button>
+                            <input
+                                type="checkbox"
+                                checked={sellNow}
+                                onChange={(e) => setSellNow(e.target.checked)}
+                                style={{ width: '16px', height: '16px', marginTop: '2px', accentColor: c.accent, cursor: 'pointer' }}
+                            />
+                            <span>
+                                {t('produce.sellNow')}
+                                {sellNow && (
+                                    <span style={{ display: 'block', fontSize: '12px', color: c.textMuted, marginTop: '2px' }}>
+                                        {t('produce.sellNowHint')}
+                                    </span>
+                                )}
+                            </span>
+                        </label>
+
+                        <div style={{ display: 'flex', gap: '10px', marginLeft: 'auto' }}>
+                            <button type="button" onClick={handleClose} style={cancelBtnStyle}>
+                                {t('common.cancel')}
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={!isFormValid || isSubmitting}
+                                style={{
+                                    ...submitBtnStyle,
+                                    opacity: !isFormValid || isSubmitting ? 0.5 : 1,
+                                    cursor: !isFormValid || isSubmitting ? 'not-allowed' : 'pointer',
+                                    whiteSpace: 'nowrap',
+                                }}
+                            >
+                                {isSubmitting
+                                    ? t('produce.producing')
+                                    : sellNow
+                                    ? t('produce.submitSell')
+                                    : t('produce.title')}
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
