@@ -1,22 +1,18 @@
 // src/features/map/MapVehicles.tsx
 import { useState, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
-
-export interface Point {
-    x: number;
-    y: number;
-}
+import type { Point2D } from './mapGeometry';
 
 interface MapVehiclesProps {
-    truckRoutePoints: Point[];
-    carCircuitPoints: Point[];
+    truckRoutePoints: Point2D[];
+    carCircuitPoints: Point2D[];
 }
 
 type IsoDirection = 'SE' | 'SW' | 'NE' | 'NW';
 
 // 1. CALCULATE CONSTANT-SPEED KEYFRAME TIMINGS
 // Prevents speeding up on straightaways and slowing down on curves
-function buildSmoothKeyframes(points: Point[], offsetX: number, offsetY: number) {
+function buildSmoothKeyframes(points: Point2D[], offsetX: number, offsetY: number) {
     if (points.length === 0) return { x: [], y: [], times: [] };
     if (points.length === 1) return { x: [points[0].x + offsetX], y: [points[0].y + offsetY], times: [0] };
 
@@ -184,12 +180,14 @@ export default function MapVehicles({ truckRoutePoints, carCircuitPoints }: MapV
     const [isPaused, setIsPaused] = useState(false);
 
     const [truckDir, setTruckDir] = useState<IsoDirection>('NE');
-    const prevTruckPos = useRef<Point | null>(null);
-    const currentTruckPos = useRef<Point>({ x: 0, y: 0 });
+    const lastTruckDir = useRef<IsoDirection>('NE');
+    const prevTruckPos = useRef<Point2D | null>(null);
+    const currentTruckPos = useRef<Point2D | null>(null);
 
     const [carDir, setCarDir] = useState<IsoDirection>('NE');
-    const prevCarPos = useRef<Point | null>(null);
-    const currentCarPos = useRef<Point>({ x: 0, y: 0 });
+    const lastCarDir = useRef<IsoDirection>('NE');
+    const prevCarPos = useRef<Point2D | null>(null);
+    const currentCarPos = useRef<Point2D | null>(null);
 
     // Memoize distance-normalized keyframes so speed stays 100% constant
     const truckMotion = useMemo(
@@ -206,24 +204,34 @@ export default function MapVehicles({ truckRoutePoints, carCircuitPoints }: MapV
         setIsPaused((prev) => !prev);
     };
 
+    const pausedTruck = currentTruckPos.current ?? {
+        x: truckMotion.x[0] ?? 0,
+        y: truckMotion.y[0] ?? 0,
+    };
+
+    const pausedCar = currentCarPos.current ?? {
+        x: carMotion.x[0] ?? 0,
+        y: carMotion.y[0] ?? 0,
+    };
+
     return (
         <>
             {/* --- SUPPLY LOGISTICS TRUCK --- */}
             <motion.div
                 onClick={handleToggleVehicles}
                 title={isPaused ? 'Click to resume vehicles' : 'Click to pause vehicles'}
-                animate={
-                    isPaused
-                        ? { x: currentTruckPos.current.x, y: currentTruckPos.current.y }
-                        : { x: truckMotion.x, y: truckMotion.y }
-                }
+                animate={isPaused ? pausedTruck : { x: truckMotion.x, y: truckMotion.y }}
                 onUpdate={(latest: { x?: number; y?: number }) => {
                     if (latest.x !== undefined && latest.y !== undefined) {
                         currentTruckPos.current = { x: latest.x, y: latest.y };
                         if (!isPaused && prevTruckPos.current) {
                             const dx = latest.x - prevTruckPos.current.x;
                             const dy = latest.y - prevTruckPos.current.y;
-                            setTruckDir((prev) => getIsoDirection(dx, dy, prev));
+                            const nextDir = getIsoDirection(dx, dy, lastTruckDir.current);
+                            if (nextDir !== lastTruckDir.current) {
+                                lastTruckDir.current = nextDir;
+                                setTruckDir(nextDir);
+                            }
                         }
                         prevTruckPos.current = { x: latest.x, y: latest.y };
                     }
@@ -255,18 +263,18 @@ export default function MapVehicles({ truckRoutePoints, carCircuitPoints }: MapV
             <motion.div
                 onClick={handleToggleVehicles}
                 title={isPaused ? 'Click to resume vehicles' : 'Click to pause vehicles'}
-                animate={
-                    isPaused
-                        ? { x: currentCarPos.current.x, y: currentCarPos.current.y }
-                        : { x: carMotion.x, y: carMotion.y }
-                }
+                animate={isPaused ? pausedCar : { x: carMotion.x, y: carMotion.y }}
                 onUpdate={(latest: { x?: number; y?: number }) => {
                     if (latest.x !== undefined && latest.y !== undefined) {
                         currentCarPos.current = { x: latest.x, y: latest.y };
                         if (!isPaused && prevCarPos.current) {
                             const dx = latest.x - prevCarPos.current.x;
                             const dy = latest.y - prevCarPos.current.y;
-                            setCarDir((prev) => getIsoDirection(dx, dy, prev));
+                            const nextDir = getIsoDirection(dx, dy, lastCarDir.current);
+                            if (nextDir !== lastCarDir.current) {
+                                lastCarDir.current = nextDir;
+                                setCarDir(nextDir);
+                            }
                         }
                         prevCarPos.current = { x: latest.x, y: latest.y };
                     }
