@@ -179,6 +179,9 @@ function VectorTruck({ direction }: { direction: IsoDirection }) {
 export default function MapVehicles({ truckRoutePoints, carCircuitPoints }: MapVehiclesProps) {
     const [isPaused, setIsPaused] = useState(false);
 
+    const [pausedTruck, setPausedTruck] = useState<Point2D | null>(null);
+    const [pausedCar, setPausedCar] = useState<Point2D | null>(null);
+
     const [truckDir, setTruckDir] = useState<IsoDirection>('NE');
     const lastTruckDir = useRef<IsoDirection>('NE');
     const prevTruckPos = useRef<Point2D | null>(null);
@@ -201,18 +204,12 @@ export default function MapVehicles({ truckRoutePoints, carCircuitPoints }: MapV
     );
 
     const handleToggleVehicles = () => {
+        if (!isPaused) {
+            setPausedTruck(currentTruckPos.current);
+            setPausedCar(currentCarPos.current);
+        }
         setIsPaused((prev) => !prev);
-    };
-
-    const pausedTruck = currentTruckPos.current ?? {
-        x: truckMotion.x[0] ?? 0,
-        y: truckMotion.y[0] ?? 0,
-    };
-
-    const pausedCar = currentCarPos.current ?? {
-        x: carMotion.x[0] ?? 0,
-        y: carMotion.y[0] ?? 0,
-    };
+    };    
 
     return (
         <>
@@ -220,7 +217,13 @@ export default function MapVehicles({ truckRoutePoints, carCircuitPoints }: MapV
             <motion.div
                 onClick={handleToggleVehicles}
                 title={isPaused ? 'Click to resume vehicles' : 'Click to pause vehicles'}
-                animate={isPaused ? pausedTruck : { x: truckMotion.x, y: truckMotion.y }}
+                animate={isPaused ? {
+                    x: pausedTruck?.x ?? truckMotion.x[0] ?? 0,
+                    y: pausedTruck?.y ?? truckMotion.y[0] ?? 0,
+                } : {
+                    x: truckMotion.x,
+                    y: truckMotion.y,
+                }}
                 onUpdate={(latest: { x?: number; y?: number }) => {
                     if (latest.x !== undefined && latest.y !== undefined) {
                         currentTruckPos.current = { x: latest.x, y: latest.y };
@@ -263,7 +266,13 @@ export default function MapVehicles({ truckRoutePoints, carCircuitPoints }: MapV
             <motion.div
                 onClick={handleToggleVehicles}
                 title={isPaused ? 'Click to resume vehicles' : 'Click to pause vehicles'}
-                animate={isPaused ? pausedCar : { x: carMotion.x, y: carMotion.y }}
+                animate={isPaused ? {
+                    x: pausedCar?.x ?? carMotion.x[0] ?? 0,
+                    y: pausedCar?.y ?? carMotion.y[0] ?? 0,
+                } : {
+                    x: carMotion.x,
+                    y: carMotion.y,
+                }}
                 onUpdate={(latest: { x?: number; y?: number }) => {
                     if (latest.x !== undefined && latest.y !== undefined) {
                         currentCarPos.current = { x: latest.x, y: latest.y };

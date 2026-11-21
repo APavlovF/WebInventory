@@ -82,8 +82,8 @@ export default function InventoryTable({ unitStocks, isLoading = false, error = 
             a.download = fileNameFrom(response, `inventory.${format}`);
             a.click();
             URL.revokeObjectURL(url);
-        } catch (err: any) {
-            setExportError(err.message || t('export.failed'));
+        } catch (err: unknown) {
+            setExportError(err instanceof Error ? err.message : t('export.failed'));
         } finally {
             setExporting(null);
         }

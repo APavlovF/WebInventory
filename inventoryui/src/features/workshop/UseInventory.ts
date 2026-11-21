@@ -44,8 +44,16 @@ export function useInventory(isLoggedIn: boolean) {
     const requestId = useRef(0); // only the newest load may write its result
     const [error, setError] = useState<string | null>(null);
 
-    const refresh = useCallback(async () => {
+    const refresh = useCallback(async (clear = false) => {
         const id = ++requestId.current;
+        await Promise.resolve();
+        if (id !== requestId.current) return;
+        if (clear) {
+            setProducts([]);
+            setProductStocks([]);
+            setUnitStocks([]);
+            setCommissions([]);
+        }
         setIsLoading(true);
         setError(null);
         try {
@@ -61,7 +69,7 @@ export function useInventory(isLoggedIn: boolean) {
             setProductStocks(pStocks);
             setUnitStocks(uStocks);
             setCommissions(comms);
-        } catch (err: any) {
+        } catch (err: unknown) {
             if (id !== requestId.current) return;
             const tr = tRef.current;
             if (err instanceof ApiError) {
@@ -71,7 +79,7 @@ export function useInventory(isLoggedIn: boolean) {
                         : tr('err.requestFailed', { path: err.path, status: err.status })
                 );
             } else {
-                setError(err.message || tr('err.loadInventory'));
+                setError(err instanceof Error ? err.message : tr('err.loadInventory'));
             }
         } finally {
             if (id === requestId.current) setIsLoading(false);
@@ -81,11 +89,10 @@ export function useInventory(isLoggedIn: boolean) {
     // Signing in or out switches between two different worlds (database / demo data):
     // drop what is on screen, then load the right one
     useEffect(() => {
-        setProducts([]);
-        setProductStocks([]);
-        setUnitStocks([]);
-        setCommissions([]);
-        refresh();
+        const timer = window.setTimeout(() => {
+            void refresh(true);
+        }, 0);
+        return () => window.clearTimeout(timer);
     }, [isLoggedIn, refresh]);
 
     // The list of materials for the "Add product type" dropdown (unique units from the stock list)

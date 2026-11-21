@@ -384,8 +384,8 @@ export default function AddProductTypeModal({
             resetForm();
             onSuccess(savedProduct);
             onClose();
-        } catch (err: any) {
-            setApiError(err.message || t('addType.errSaving'));
+        } catch (err: unknown) {
+            setApiError(err instanceof Error ? err.message : t('addType.errSaving'));
         } finally {
             setIsSubmitting(false);
         }

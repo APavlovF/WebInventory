@@ -302,11 +302,11 @@ export default function BuyMaterialsModal({
             });
 
             setRows(importedRows);
-        } catch (err: any) {
-            if (err.name === 'AbortError') {
+        } catch (err: unknown) {
+            if (err instanceof Error && err.name === 'AbortError') {
                 setApiError(t('buy.errCanceled'));
             } else {
-                setApiError(err.message || t('buy.errParsing'));
+                setApiError(err instanceof Error ? err.message : t('buy.errParsing'));
             }
         } finally {
             abortControllerRef.current = null;
@@ -351,8 +351,8 @@ export default function BuyMaterialsModal({
             resetForm();
             onSuccess();
             onClose();
-        } catch (err: any) {
-            setApiError(err.message || t('buy.errSaving'));
+        } catch (err: unknown) {
+            setApiError(err instanceof Error ? err.message : t('buy.errSaving'));
         } finally {
             setIsSubmitting(false);
         }

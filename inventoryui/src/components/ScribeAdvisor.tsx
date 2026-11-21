@@ -1,5 +1,5 @@
 // src/components/ScribeAdvisor.tsx
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useI18n } from '../i18n/I18nContext';
 import type { TKey } from '../i18n/en';
 import { c, alpha } from '../theme/themes';
@@ -27,12 +27,7 @@ export default function ScribeAdvisor({ message, isDemoMode = true }: ScribeAdvi
     const { t } = useI18n();
     const [demoIndex, setDemoIndex] = useState(0);
     const [isHovered, setIsHovered] = useState(false);
-    const [hidden, setHidden] = useHiddenPanel('advisor'); // the advisor can be minimised
-
-    // Reset to the default prompt if auth state (or language) changes
-    useEffect(() => {
-        setDemoIndex(0);
-    }, [message]);
+    const [hidden, setHidden] = useHiddenPanel('advisor'); // the advisor can be minimised  
 
     const handleAdvisorClick = () => {
         if (!isDemoMode) return;

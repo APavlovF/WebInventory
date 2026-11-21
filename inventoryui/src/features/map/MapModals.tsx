@@ -39,7 +39,9 @@ export default function MapModals({ activeModal, autoImport, maxStock, onClose }
                 availableCommissions={commissions}
                 products={products}
                 onClose={onClose}
-                onSuccess={refresh}
+                onSuccess={() => {
+                    void refresh();
+                }}
             />
 
             <ProduceBatchModal
@@ -73,6 +75,7 @@ export default function MapModals({ activeModal, autoImport, maxStock, onClose }
 
             {/* Warehouse forms */}
             <MaterialLimitsModal
+                key={activeModal}
                 isOpen={activeModal === 'materialLimits'}
                 unitStocks={unitStocks}
                 onClose={onClose}

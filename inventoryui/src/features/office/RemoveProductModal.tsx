@@ -147,11 +147,8 @@ export default function RemoveProductModal({
             onSuccess();
             onClose();
         }
-        catch (err: any) {
-            setApiError(
-                err.message ??
-                t('rmProd.errRemoving')
-            );
+        catch (err: unknown) {
+            setApiError(err instanceof Error ? err.message : t('rmProd.errRemoving'));
         }
         finally {
             setIsSubmitting(false);

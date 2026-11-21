@@ -142,8 +142,8 @@ export default function SellProductsModal({
             resetForm();
             onSuccess();
             onClose();
-        } catch (err: any) {
-            setApiError(err.message || t('sell.errSaving'));
+        } catch (err: unknown) {
+            setApiError(err instanceof Error ? err.message : t('sell.errSaving'));
         } finally {
             setIsSubmitting(false);
         }

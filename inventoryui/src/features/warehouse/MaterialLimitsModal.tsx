@@ -40,6 +40,20 @@ interface LimitRow {
     initialMax: number;
 }
 
+const createLimitRows = (stocks: UnitStock[]): LimitRow[] =>
+    stocks.map((stock) => {
+        const rawLow = stock.lowStockAlert ?? 0;
+        const rawMax = stock.maxStockAlert ?? NO_MAX_LIMIT;
+        const normalizedMax = hasMaxStockLimit(rawMax) ? rawMax : NO_MAX_LIMIT;
+        return {
+            stock,
+            lowStockAlert: String(rawLow),
+            maxStockAlert: normalizedMax < NO_MAX_LIMIT ? String(normalizedMax) : '',
+            initialLow: rawLow,
+            initialMax: normalizedMax,
+        };
+    });
+
 export default function MaterialLimitsModal({
     isOpen,
     unitStocks,
@@ -47,45 +61,18 @@ export default function MaterialLimitsModal({
     onSuccess,
 }: MaterialLimitsModalProps) {
     const { t } = useI18n();
-    const [rows, setRows] = useState<LimitRow[]>([]);
+    const [rows, setRows] = useState<LimitRow[]>(() => createLimitRows(unitStocks));
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [apiError, setApiError] = useState<string | null>(null);
     const [query, setQuery] = useState('');
-    const listRef = useRef<HTMLDivElement>(null);
-
-    // Closing the dialog clears the search
-    useEffect(() => {
-        if (!isOpen) setQuery('');
-    }, [isOpen]);
+    const listRef = useRef<HTMLDivElement>(null);    
 
     // A new search starts at the top of the list, where the matches are
     useEffect(() => {
         listRef.current?.scrollTo({ top: 0 });
     }, [query]);
 
-    const activeStocks = useMemo(() => (Array.isArray(unitStocks) ? unitStocks : []), [unitStocks]);
-
-    useEffect(() => {
-        if (!isOpen) return;
-
-        setRows(
-            activeStocks.map((stock) => {
-                const rawLow = stock.lowStockAlert ?? 0;
-                const rawMax = stock.maxStockAlert ?? NO_MAX_LIMIT;
-                const normalizedMax = hasMaxStockLimit(rawMax) ? rawMax : NO_MAX_LIMIT;
-
-                return {
-                    stock,
-                    lowStockAlert: String(rawLow),
-                    maxStockAlert: normalizedMax < NO_MAX_LIMIT ? String(normalizedMax) : '',
-                    initialLow: rawLow,
-                    initialMax: normalizedMax,
-                };
-            })
-        );
-
-        setApiError(null);
-    }, [isOpen, activeStocks]);
+    const activeStocks = useMemo(() => (Array.isArray(unitStocks) ? unitStocks : []), [unitStocks]);   
 
     const rowInfos = rows.map((row) => {
         const minVal =
@@ -146,6 +133,7 @@ export default function MaterialLimitsModal({
 
     const handleClose = () => {
         if (isSubmitting) return;
+        setQuery('');
         setApiError(null);
         onClose();
     };
@@ -191,8 +179,8 @@ export default function MaterialLimitsModal({
 
             onSuccess();
             onClose();
-        } catch (err: any) {
-            setApiError(err?.message || t('limits.errSaving'));
+        } catch (err: unknown) {
+            setApiError(err instanceof Error ? err.message : t('limits.errSaving'));
         } finally {
             setIsSubmitting(false);
         }

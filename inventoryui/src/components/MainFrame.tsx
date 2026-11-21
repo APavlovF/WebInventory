@@ -416,6 +416,7 @@ export default function MainFrame() {
 
                     {!isFormView && (
                         <ScribeAdvisor
+                            key={isAuthenticated ? t('advisor.connected') : t('advisor.guest')}
                             message={isAuthenticated ? t('advisor.connected') : t('advisor.guest')}
                             isDemoMode={!isAuthenticated}
                         />

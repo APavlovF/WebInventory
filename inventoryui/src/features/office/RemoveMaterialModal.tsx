@@ -144,10 +144,8 @@ export default function RemoveMaterialModal({
             onSuccess();
             onClose();
         }
-        catch (err: any) {
-            setApiError(
-                err.message ?? t('rmMat.errRemoving')
-            );
+        catch (err: unknown) {
+            setApiError(err instanceof Error ? err.message : t('rmMat.errRemoving'));
         }
         finally {
             setIsSubmitting(false);

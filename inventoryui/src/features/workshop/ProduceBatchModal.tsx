@@ -192,8 +192,8 @@ export default function ProduceBatchModal({
             resetForm();
             onSuccess();
             onClose();
-        } catch (err: any) {
-            setApiError(err.message || t('produce.errRecording'));
+        } catch (err: unknown) {
+            setApiError(err instanceof Error ? err.message : t('produce.errRecording'));
         } finally {
             setIsSubmitting(false);
         }

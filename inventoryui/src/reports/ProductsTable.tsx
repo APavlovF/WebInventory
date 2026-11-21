@@ -97,8 +97,8 @@ export default function ProductsTable({ productStocks, products, isLoading = fal
             a.download = fileNameFrom(response, `products.${format}`);
             a.click();
             URL.revokeObjectURL(url);
-        } catch (err: any) {
-            setExportError(err.message || t('export.failed'));
+        } catch (err: unknown) {
+            setExportError(err instanceof Error ? err.message : t('export.failed'));
         } finally {
             setExporting(null);
         }
