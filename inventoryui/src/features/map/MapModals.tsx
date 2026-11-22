@@ -4,7 +4,6 @@ import ProduceBatchModal from '../workshop/ProduceBatchModal';
 import BuyMaterialsModal from '../market/BuyMaterialsModal';
 import SellProductsModal from '../market/SellProductsModal';
 import MaterialLimitsModal from '../warehouse/MaterialLimitsModal';
-import ProductionMapModal from '../warehouse/ProductionMapModal';
 import RemoveMaterialModal from '../office/RemoveMaterialModal';
 import RemoveProductModal from '../office/RemoveProductModal';
 
@@ -13,8 +12,7 @@ export type ActiveMapModal =
     | 'produceBatch'
     | 'buyMaterials'
     | 'sellProducts'
-    | 'materialLimits'
-    | 'productionMap'
+    | 'materialLimits'    
     | 'removeMaterial'
     | 'removeProduct'
     | null;
@@ -80,13 +78,7 @@ export default function MapModals({ activeModal, autoImport, maxStock, onClose }
                 unitStocks={unitStocks}
                 onClose={onClose}
                 onSuccess={refresh}
-            />
-
-            <ProductionMapModal
-                isOpen={activeModal === 'productionMap'}
-                products={products}
-                onClose={onClose}
-            />
+            />            
 
             {/* Office forms */}
             <RemoveMaterialModal

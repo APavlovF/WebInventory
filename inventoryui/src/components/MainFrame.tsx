@@ -14,13 +14,14 @@ import { c, alpha } from '../theme/themes';
 import { apiFetch } from '../api';
 import MinimizeButton, { RestoreButton } from './MinimizeButton';
 import { useHiddenPanel } from './useHiddenPanel';
+import ProductionMapModal from '../features/warehouse/ProductionMapModal';
 
 const EXPIRATION_TIME_MS = 5 * 60 * 1000;
 const SUPPORT_EMAIL = 'pavlovfontanka@gmail.com';
 const DEFAULT_LOGO = './logo.png';
 const MAX_LOGO_SIZE_BYTES = 1 * 1024 * 1024; // 1 MB
 
-type TabType = 'Overview' | 'Inventory' | 'Products';
+type TabType = 'Overview' | 'Inventory' | 'Products' | 'Production Map';
 
 // Building -> screen (Office and Market only have action buttons, no screen of their own)
 const buildingToTab: Record<string, TabType> = {
@@ -33,6 +34,7 @@ const tabTitleKey: Record<TabType, TKey> = {
     Overview: 'nav.overview',
     Inventory: 'nav.inventory',
     Products: 'nav.products',
+    "Production Map": 'prodMap.title',
 };
 
 // A saved login that has not expired yet (checked once at start so the first screen is already right)
@@ -232,6 +234,7 @@ export default function MainFrame() {
         switch (activeTab) {
             case 'Inventory': return <InventoryTable unitStocks={unitStocks} isLoading={isLoading} error={error} onClose={() => handleTabChange('Overview')} />;
             case 'Products': return <ProductsTable productStocks={productStocks} products={products} isLoading={isLoading} error={error} onClose={() => handleTabChange('Overview')} />;
+            case 'Production Map': return <ProductionMapModal isOpen products={products} onClose={() => handleTabChange('Overview')} />;
             default: return <MapCanvas onBuildingClick={handleBuildingClick} />;
         }
     };

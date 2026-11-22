@@ -87,8 +87,7 @@ export default function MapCanvas({ onBuildingClick }: MapCanvasProps) {
                 left={`${landmarks.warehouse.x - 65}px`}
                 imgSrc="map-warehouse.png"
                 onClick={() => onBuildingClick('Warehouse')}
-                onSetupStockLimits={() => setActiveModal('materialLimits')}
-                onProductionMap={() => setActiveModal('productionMap')}
+                onSetupStockLimits={() => setActiveModal('materialLimits')}                
             />
             <WarehouseSemaphore
                 top={`${landmarks.warehouse.y - 120}px`}

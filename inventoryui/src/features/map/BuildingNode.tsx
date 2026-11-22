@@ -26,8 +26,7 @@ interface BuildingNodeProps {
     onNewProduct?: () => void;
     onCreateProducts?: () => void;
     onSetupStockLimits?: () => void;
-    onImportInvoice?: () => void;
-    onProductionMap?: () => void;
+    onImportInvoice?: () => void;    
     onRemoveMaterial?: () => void;
     onRemoveProduct?: () => void;
     // Optional status for the Warehouse building
@@ -45,8 +44,7 @@ export default function BuildingNode({
     onNewProduct,
     onCreateProducts,
     onSetupStockLimits,
-    onImportInvoice,
-    onProductionMap,
+    onImportInvoice,    
     onRemoveMaterial,
     onRemoveProduct,
 }: BuildingNodeProps) {
@@ -252,29 +250,7 @@ export default function BuildingNode({
                         }}
                     >
                         {t('building.setupLimits')}
-                    </button>
-
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onProductionMap?.();
-                        }}
-                        style={{
-                            padding: '5px 10px',
-                            background: alpha('accent', 0.1),
-                            color: c.accentBright,
-                            fontFamily: 'monospace',
-                            fontSize: '11px',
-                            fontWeight: 'bold',
-                            borderRadius: '4px',
-                            border: `1px solid ${alpha('accentBright', 0.4)}`,
-                            cursor: 'pointer',
-                            whiteSpace: 'nowrap',
-                        }}
-                    >
-                        {t('prodMap.title')}
-                    </button>
+                    </button>                    
                 </div>
             )}
 

@@ -4,12 +4,13 @@ import { useI18n } from '../i18n/I18nContext';
 import type { TKey } from '../i18n/en';
 import { c, alpha } from '../theme/themes';
 
-type TabType = 'Overview' | 'Inventory' | 'Products';
+type TabType = 'Overview' | 'Inventory' | 'Products' | 'Production Map';
 
 const menuLabelKey: Record<TabType, TKey> = {
     Overview: 'nav.overview',
     Inventory: 'nav.inventory',
     Products: 'nav.products',
+    "Production Map": 'prodMap.title',
 };
 
 interface SidebarProps {
@@ -22,7 +23,7 @@ interface SidebarProps {
 
 export default function Sidebar({ activeTab, setActiveTab, isAuthenticated, onLoginClick, onLogoutClick }: SidebarProps) {
     const { t } = useI18n();
-    const menuItems: TabType[] = ['Overview', 'Inventory', 'Products'];
+    const menuItems: TabType[] = ['Overview', 'Inventory', 'Products', 'Production Map'];
 
     return (
         <aside style={{
