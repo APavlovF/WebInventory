@@ -19,7 +19,7 @@ import {
 } from '../../types/inventory';
 import '../shared/modalForm.css';
 import { c, alpha } from '../../theme/themes';
-import { useI18n } from '../../i18n/I18nContext';
+import { useI18n } from '../../i18n/useI18n';
 
 // Lower-case and without accents, so "acai" finds "Açaí"
 const normalize = (text: string) =>

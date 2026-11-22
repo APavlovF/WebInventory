@@ -1,5 +1,5 @@
-import { useI18n, LANGUAGES, type Lang } from '../i18n/I18nContext';
-import { useTheme } from '../theme/ThemeContext';
+import { useI18n, LANGUAGES, type Lang } from '../i18n/useI18n';
+import { useTheme } from '../theme/useTheme';
 import { alpha, c, type ThemeName } from '../theme/themes';
 
 const THEME_BUTTONS: { name: ThemeName; icon: React.ReactNode }[] = [

@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react';
 import { apiFetch, isDemoMode } from '../api';
 import type { Product, ProductStock } from '../types/inventory';
 import { c, alpha } from '../theme/themes';
-import { useI18n } from '../i18n/I18nContext';
+import { useI18n } from '../i18n/useI18n';
 
 type ExportFormat = 'xlsx' | 'csv' | 'pdf' | 'txt';
 

@@ -14,7 +14,7 @@ import {
 } from '../shared/ModalStyles';
 import type { UnitStock } from '../../types/inventory';
 import { c, alpha } from '../../theme/themes';
-import { useI18n } from '../../i18n/I18nContext';
+import { useI18n } from '../../i18n/useI18n';
 
 interface RemoveMaterialModalProps {
     isOpen: boolean;

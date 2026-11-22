@@ -14,7 +14,7 @@ import {
 } from '../shared/ModalStyles';
 import type { Product } from '../../types/inventory';
 import { c, alpha } from '../../theme/themes';
-import { useI18n } from '../../i18n/I18nContext';
+import { useI18n } from '../../i18n/useI18n';
 
 interface RemoveProductModalProps {
     isOpen: boolean;

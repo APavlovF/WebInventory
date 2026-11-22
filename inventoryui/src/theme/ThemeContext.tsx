@@ -1,6 +1,6 @@
-// src/theme/ThemeContext.tsx
-import { createContext, useContext, useLayoutEffect, useState, type ReactNode } from 'react';
+import { useLayoutEffect, useState, type ReactNode } from 'react';
 import { applyTheme, THEME_NAMES, type ThemeName } from './themes';
+import { ThemeContext } from './useTheme';
 
 const STORAGE_KEY = 'ui_theme'; // a preference: kept in the browser in demo mode and logged-in mode alike
 
@@ -12,13 +12,6 @@ function initialTheme(): ThemeName {
     return window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
 }
 
-interface ThemeContextValue {
-    theme: ThemeName;
-    setTheme: (theme: ThemeName) => void;
-}
-
-const ThemeContext = createContext<ThemeContextValue | null>(null);
-
 export function ThemeProvider({ children }: { children: ReactNode }) {
     const [theme, setTheme] = useState<ThemeName>(initialTheme);
 
@@ -29,10 +22,4 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }, [theme]);
 
     return <ThemeContext.Provider value={{ theme, setTheme }}>{children}</ThemeContext.Provider>;
-}
-
-export function useTheme(): ThemeContextValue {
-    const ctx = useContext(ThemeContext);
-    if (!ctx) throw new Error('useTheme must be used inside <ThemeProvider>');
-    return ctx;
 }

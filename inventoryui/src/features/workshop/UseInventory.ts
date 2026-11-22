@@ -4,7 +4,7 @@
 // Call refresh() whenever the database changed (after adding a product type or producing a batch).
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch } from '../../api';
-import { useI18n } from '../../i18n/I18nContext';
+import { useI18n } from '../../i18n/useI18n';
 import type { Commission, Product, ProductStock, Unit, UnitStock } from '../../types/inventory';
 
 // The request helper throws this; the hook turns it into a translated message

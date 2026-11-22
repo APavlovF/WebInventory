@@ -8,7 +8,7 @@ import InventoryTable from '../reports/InventoryTable';
 import ProductsTable from '../reports/ProductsTable';
 import { useInventory } from '../features/workshop/UseInventory';
 import { InventoryContext } from '../data/InventoryContext';
-import { useI18n } from '../i18n/I18nContext';
+import { useI18n } from '../i18n/useI18n';
 import type { TKey } from '../i18n/en';
 import { c, alpha } from '../theme/themes';
 import { apiFetch } from '../api';

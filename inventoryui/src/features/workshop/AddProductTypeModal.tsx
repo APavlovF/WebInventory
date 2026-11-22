@@ -18,7 +18,7 @@ import {
 import type { Product, Unit, UnitStock } from '../../types/inventory';
 import '../shared/modalForm.css';
 import { c as clr, alpha } from '../../theme/themes';
-import { useI18n } from '../../i18n/I18nContext';
+import { useI18n } from '../../i18n/useI18n';
 import SpinnerButton from '../shared/SpinnerButton';
 
 export interface Commission {

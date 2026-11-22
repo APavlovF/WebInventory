@@ -1,7 +1,7 @@
 // src/features/map/BuildingNode.tsx
 import { useState } from 'react';
 import { c, alpha } from '../../theme/themes';
-import { useI18n } from '../../i18n/I18nContext';
+import { useI18n } from '../../i18n/useI18n';
 import type { TKey } from '../../i18n/en';
 
 export type WarehouseStatus = 'low stock' | 'ok' | 'near full';

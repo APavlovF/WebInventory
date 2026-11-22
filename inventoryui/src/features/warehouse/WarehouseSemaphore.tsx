@@ -7,7 +7,7 @@ import {
     type ProductStock,
     type UnitStock,
 } from '../../types/inventory';
-import { useI18n } from '../../i18n/I18nContext';
+import { useI18n } from '../../i18n/useI18n';
 import {
     overlayStyle,
     modalStyle,

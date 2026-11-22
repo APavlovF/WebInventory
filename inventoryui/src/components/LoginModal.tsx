@@ -1,7 +1,7 @@
 // src/components/LoginModal.tsx
 import React, { useState } from "react";
 import { BASE_BACKEND_URL } from '../api';
-import { useI18n } from '../i18n/I18nContext';
+import { useI18n } from '../i18n/useI18n';
 import { c, alpha } from '../theme/themes';
 
 interface LoginModalProps {
@@ -42,8 +42,8 @@ export default function LoginModal({ onSuccess, onClose }: LoginModalProps) {
                 setIsFirstAccess(false);
                 setLoginOrToken("");
                 setPassword("");
-            } catch (error: any) {
-                setErrorMessage(error.message || t('login.err.activationServer'));
+            } catch (err: unknown) {
+                setErrorMessage(err instanceof Error ? err.message : t('login.err.activationServer'));
             } finally {
                 setIsLoading(false);
             }
@@ -61,8 +61,8 @@ export default function LoginModal({ onSuccess, onClose }: LoginModalProps) {
             localStorage.setItem("authToken", data.token);
             localStorage.setItem("session_login_time", new Date().getTime().toString());
             onSuccess(); // Triggers authentication in parent frame
-        } catch (error: any) {
-            setErrorMessage(error.message || t('login.err.authServer'));
+        } catch (err: unknown) {
+            setErrorMessage(err instanceof Error ? err.message : t('login.err.authServer'));
         } finally {
             setIsLoading(false);
         }
