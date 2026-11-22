@@ -8,6 +8,7 @@ import type { Product, ProductStock, UnitStock } from '../../types/inventory';
 import '../shared/modalForm.css';
 import { c, alpha } from '../../theme/themes';
 import { useI18n } from '../../i18n/useI18n';
+import { useAdvisorMessage } from '../../components/useAdvisor';
 
 interface ProduceBatchModalProps {
     isOpen: boolean;
@@ -143,6 +144,30 @@ export default function ProduceBatchModal({
 
     const canAddRow = rows.length < products.length;
 
+    // The first problem of the form in words: shown under its row, and repeated by the advisor
+    const errorTextOf = (info: (typeof rowInfos)[number]) =>
+        info.invalidRecipe
+            ? t('produce.invalidRecipe')
+            : info.exceedsLimit
+            ? t('common.exceedsMax', { stock: info.existing, max: maxStock })
+            : info.lacksMaterials
+            ? t('produce.notEnoughMaterials')
+            : info.row.quantity !== '' && !info.qtyValid
+            ? t('common.wholeNumberAboveZero')
+            : null;
+
+    let firstProblem: string | null = null;
+    for (const info of rowInfos) {
+        const text = errorTextOf(info);
+        if (text) {
+            firstProblem = text;
+            break;
+        }
+    }
+
+    // While this window is open the advisor repeats the problem (a server error wins over a form warning)
+    useAdvisorMessage(isOpen ? (apiError ?? firstProblem) : null, apiError ? 'error' : 'warning');
+
     if (!isOpen) return null;
 
     const resetForm = () => {
@@ -221,15 +246,7 @@ export default function ProduceBatchModal({
                         </div>
 
                         {rowInfos.map((info) => {
-                            const errorText = info.invalidRecipe
-                                ? t('produce.invalidRecipe')
-                                : info.exceedsLimit
-                                ? t('common.exceedsMax', { stock: info.existing, max: maxStock })
-                                : info.lacksMaterials
-                                ? t('produce.notEnoughMaterials')
-                                : info.row.quantity !== '' && !info.qtyValid
-                                ? t('common.wholeNumberAboveZero')
-                                : null;
+                            const errorText = errorTextOf(info);
 
                             return (
                                 <div key={info.row.rowId} style={{ marginBottom: '8px' }}>

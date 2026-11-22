@@ -1,10 +1,9 @@
 // src/components/ScribeAdvisor.tsx
-import { useState } from 'react';
 import { useI18n } from '../i18n/useI18n';
-import type { TKey } from '../i18n/en';
 import { c, alpha } from '../theme/themes';
 import MinimizeButton, { RestoreButton } from './MinimizeButton';
 import { useHiddenPanel } from './useHiddenPanel';
+import { useAdvisorAlert } from './useAdvisor';
 
 // Injected at build time by vite.config.ts (git tag, commit or package.json version)
 declare const __APP_VERSION__: string;
@@ -12,27 +11,16 @@ const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '
 
 interface ScribeAdvisorProps {
     message: string;
-    isDemoMode?: boolean;
+    isDemoMode?: boolean; // no longer used: the advisor says the same thing in demo mode (kept so callers still compile)
 }
 
-const DEMO_ADVISOR_KEYS: TKey[] = [
-    'advisor.guest',
-    'advisor.demo.lowStock',
-    'advisor.demo.fullStock',
-    'advisor.demo.lowSupplies',
-    'advisor.demo.allOk',
-];
-
-export default function ScribeAdvisor({ message, isDemoMode = true }: ScribeAdvisorProps) {
+export default function ScribeAdvisor({ message }: ScribeAdvisorProps) {
     const { t } = useI18n();
-    const [demoIndex, setDemoIndex] = useState(0);
-    const [isHovered, setIsHovered] = useState(false);
     const [hidden, setHidden] = useHiddenPanel('advisor'); // the advisor can be minimised  
 
-    const handleAdvisorClick = () => {
-        if (!isDemoMode) return;
-        setDemoIndex((prev) => (prev + 1) % DEMO_ADVISOR_KEYS.length);
-    };
+    // A warning/error repeated from an open window (see useAdvisorMessage): it replaces the usual speech
+    const notice = useAdvisorAlert();
+    const noticeColor = notice ? (notice.kind === 'error' ? c.danger : notice.kind === 'warning' ? c.warning : c.info) : undefined;
 
     if (hidden) {
         return (
@@ -42,14 +30,10 @@ export default function ScribeAdvisor({ message, isDemoMode = true }: ScribeAdvi
         );
     }
 
-    const displayedMessage = isDemoMode ? t(DEMO_ADVISOR_KEYS[demoIndex]) : message;
+    const displayedMessage = notice ? notice.text : message;
 
     return (
         <div
-            onClick={handleAdvisorClick}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-            title={isDemoMode ? t('advisor.clickToCycle') : undefined}
             style={{
                 position: 'absolute',
                 bottom: '24px',
@@ -58,7 +42,7 @@ export default function ScribeAdvisor({ message, isDemoMode = true }: ScribeAdvi
                 alignItems: 'center',
                 gap: '16px',
                 backgroundColor: c.bgApp,
-                border: `1px solid ${isHovered && isDemoMode ? c.accent : c.borderSubtle}`,
+                border: `1px solid ${notice ? noticeColor : c.borderSubtle}`,
                 padding: '16px 20px',
                 borderRadius: '12px',
                 boxShadow: `0 20px 25px -5px ${alpha('overlay', 0.5)}`,
@@ -67,7 +51,7 @@ export default function ScribeAdvisor({ message, isDemoMode = true }: ScribeAdvi
                 boxSizing: 'border-box',
                 zIndex: 100,
                 backdropFilter: 'blur(12px)',
-                cursor: isDemoMode ? 'pointer' : 'default',
+                cursor: 'default',
                 userSelect: 'none',
                 transition: 'border-color 0.2s ease'
             }}
@@ -76,8 +60,11 @@ export default function ScribeAdvisor({ message, isDemoMode = true }: ScribeAdvi
 
             {/* Text on the left */}
             <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-                <p style={{ fontSize: '14px', color: c.text, fontWeight: '500', fontStyle: 'italic', margin: '4px 0 0 0', lineHeight: '1.4' }}>
-                    "{displayedMessage}"
+                <p
+                    aria-live="polite"
+                    style={{ fontSize: '14px', color: noticeColor ?? c.text, fontWeight: '500', fontStyle: 'italic', margin: '4px 0 0 0', lineHeight: '1.4' }}
+                >
+                    {notice ? `⚠ ${displayedMessage}` : `"${displayedMessage}"`}
                 </p>
             </div>
 

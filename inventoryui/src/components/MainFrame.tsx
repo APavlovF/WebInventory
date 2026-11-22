@@ -24,10 +24,11 @@ const MAX_LOGO_SIZE_BYTES = 1 * 1024 * 1024; // 1 MB
 
 type TabType = 'Overview' | 'Inventory' | 'Products' | 'Production Map';
 
-// Building -> screen (Office and Market only have action buttons, no screen of their own)
+// Building -> screen (Office only have action buttons, no screen of their own)
 const buildingToTab: Record<string, TabType> = {
     Warehouse: 'Inventory',
-    Workshop: 'Products',
+    Market: 'Products',
+    Workshop: 'Production Map'
 };
 
 // The header title is stored as a translation key, so it follows the language switch

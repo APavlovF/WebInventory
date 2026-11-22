@@ -104,7 +104,7 @@ export default function BuildingNode({
                 cursor: 'pointer',
                 transition: 'transform 0.2s ease',
                 transform: isHovered ? 'scale(1.08)' : 'scale(1)',
-                zIndex: isHovered ? 30 : 10,
+                zIndex: isHovered ? 60 : 50,
             }}
         >
             {/* WORKSHOP: Rectangular panel ABOVE the picture */}

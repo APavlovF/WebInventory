@@ -112,7 +112,7 @@ export default function MapCanvas({ onBuildingClick }: MapCanvasProps) {
                 name="Workshop"
                 top={`${landmarks.workshop.y - 75}px`}
                 left={`${landmarks.workshop.x - 65}px`}
-                imgSrc="map-workshop.png"
+                imgSrc="map-workshop.png"                
                 onClick={() => onBuildingClick('Workshop')}
                 onNewProduct={() => setActiveModal('addProduct')}
                 onCreateProducts={() => setActiveModal('produceBatch')}
@@ -122,6 +122,7 @@ export default function MapCanvas({ onBuildingClick }: MapCanvasProps) {
                 top={`${landmarks.market.y - 75}px`}
                 left={`${landmarks.market.x - 65}px`}
                 imgSrc="map-market.png"
+                onClick={() => onBuildingClick('Market')}
                 onBuyMaterials={() => {
                     setAutoImport(false);
                     setActiveModal('buyMaterials');
