@@ -15,6 +15,7 @@ import { apiFetch } from '../api';
 import MinimizeButton, { RestoreButton } from './MinimizeButton';
 import { useHiddenPanel } from './useHiddenPanel';
 import ProductionMapModal from '../features/warehouse/ProductionMapModal';
+import PreferencesBar from './PreferencesBar';
 
 const EXPIRATION_TIME_MS = 5 * 60 * 1000;
 const SUPPORT_EMAIL = 'pavlovfontanka@gmail.com';
@@ -258,10 +259,7 @@ export default function MainFrame() {
             }}>
                 <Sidebar
                     activeTab={activeTab}
-                    setActiveTab={handleTabChange}
-                    isAuthenticated={isAuthenticated}
-                    onLoginClick={() => setShowLoginModal(true)}
-                    onLogoutClick={handleLogout}
+                    setActiveTab={handleTabChange}                    
                 />
 
                 <main style={{
@@ -280,12 +278,20 @@ export default function MainFrame() {
                         display: 'grid',
                         gridTemplateColumns: '1fr auto 1fr',
                         alignItems: 'center',
+                        gap: '16px',
                         marginBottom: '16px',
                         borderBottom: `1px solid ${c.borderSubtle}`,
                         paddingBottom: '12px'
                     }}>
-                        {/* Upper-left corner: Logo */}
-                        <div style={{ justifySelf: 'start', display: 'flex', alignItems: 'center' }}>
+                        {/* Upper-left corner: Logo + Connection status badge */}
+                        <div style={{
+                            justifySelf: 'start',
+                            display: 'flex',
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            flexWrap: 'nowrap',
+                            gap: '12px'
+                        }}>
                             <input
                                 ref={fileInputRef}
                                 type="file"
@@ -299,6 +305,7 @@ export default function MainFrame() {
                                 style={{
                                     width: '48px',
                                     height: '48px',
+                                    flexShrink: 0,
                                     overflow: 'hidden',
                                     cursor: 'pointer',
                                     display: 'flex',
@@ -321,21 +328,7 @@ export default function MainFrame() {
                                     }}
                                 />
                             </div>
-                        </div>
 
-                        {/* Horizontal center: Active Tab Title */}
-                        <h1 style={{
-                            fontSize: '20px',
-                            fontWeight: 600,
-                            color: c.textStrong,
-                            margin: 0,
-                            textAlign: 'center'
-                        }}>
-                            {t(viewportKey)}
-                        </h1>
-
-                        {/* Upper-right corner: Connection status badge */}
-                        <div style={{ justifySelf: 'end' }}>
                             <span
                                 title={isAuthenticated ? undefined : t('main.demoHint')}
                                 style={{
@@ -346,13 +339,100 @@ export default function MainFrame() {
                                     border: `1px solid ${alpha(isAuthenticated ? 'accent' : 'warning', 0.4)}`,
                                     color: isAuthenticated ? c.accent : c.warning,
                                     backgroundColor: alpha(isAuthenticated ? 'accent' : 'warning', 0.05),
-                                    cursor: isAuthenticated ? 'default' : 'help'
+                                    cursor: isAuthenticated ? 'default' : 'help',
+                                    whiteSpace: 'nowrap',
                                 }}
                             >
                                 {isAuthenticated ? t('main.systemConnected') : t('main.demoMode')}
                             </span>
                         </div>
+
+                        {/* Horizontal center: Active Tab Title */}
+                        <h1 style={{
+                            fontSize: '20px',
+                            fontWeight: 600,
+                            color: c.textStrong,
+                            margin: 0,
+                            textAlign: 'center',
+                            whiteSpace: 'nowrap'
+                        }}>
+                            {t(viewportKey)}
+                        </h1>
+
+                        {/* Upper-right corner: Theme, Language & Session controls */}
+                        <div style={{
+                            justifySelf: 'end',
+                            display: 'flex',
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            flexWrap: 'nowrap',
+                            gap: '12px'
+                        }}>
+                            <PreferencesBar />
+
+                            <span style={{ width: '1px', height: '16px', backgroundColor: c.borderSubtle }} />
+
+                            {isAuthenticated ? (
+                                <button
+                                    type="button"
+                                    onClick={handleLogout}
+                                    title={t('header.signOut')}
+                                    style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        padding: '6px 12px',
+                                        borderRadius: '6px',
+                                        border: `1px solid ${c.border}`,
+                                        backgroundColor: 'transparent',
+                                        color: c.textMuted,
+                                        fontSize: '12px',
+                                        fontFamily: 'monospace',
+                                        cursor: 'pointer',
+                                        whiteSpace: 'nowrap',
+                                        transition: 'all 0.15s ease',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.color = c.textStrong;
+                                        e.currentTarget.style.borderColor = c.textMuted;
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.color = c.textMuted;
+                                        e.currentTarget.style.borderColor = c.border;
+                                    }}
+                                >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                                        <polyline points="16 17 21 12 16 7" />
+                                        <line x1="21" y1="12" x2="9" y2="12" />
+                                    </svg>
+                                    <span>{t('header.signOut')}</span>
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowLoginModal(true)}
+                                    style={{
+                                        padding: '6px 14px',
+                                        backgroundColor: c.accent,
+                                        color: c.onAccent,
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        fontSize: '12px',
+                                        fontWeight: 'bold',
+                                        fontFamily: 'monospace',
+                                        cursor: 'pointer',
+                                        whiteSpace: 'nowrap',
+                                        boxShadow: `0 2px 8px ${alpha('accent', 0.2)}`
+                                    }}
+                                >
+                                    {t('sidebar.signIn')}
+                                </button>
+                            )}
+                        </div>
+
                     </header>
+
 
                     <div style={{ position: 'relative', flex: 1, width: '100%', borderRadius: '12px', overflow: 'hidden', border: `1px solid ${c.borderSubtle}`, backgroundColor: alpha('bgSurface', 0.2) }}>
                         {renderViewport()}
@@ -430,6 +510,7 @@ export default function MainFrame() {
                     onSuccess={() => {
                         localStorage.setItem('session_login_time', Date.now().toString());
                         setIsAuthenticated(true);
+                        setPromoHidden(true);
                         void fetchUserLogo();
                         setShowLoginModal(false);
                     }}

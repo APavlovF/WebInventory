@@ -1,5 +1,4 @@
 // src/components/Sidebar.tsx
-import PreferencesBar from './PreferencesBar';
 import { useI18n } from '../i18n/I18nContext';
 import type { TKey } from '../i18n/en';
 import { c, alpha } from '../theme/themes';
@@ -16,12 +15,9 @@ const menuLabelKey: Record<TabType, TKey> = {
 interface SidebarProps {
     activeTab: TabType;
     setActiveTab: (tab: TabType) => void;
-    isAuthenticated: boolean;
-    onLoginClick: () => void;
-    onLogoutClick: () => void;
 }
 
-export default function Sidebar({ activeTab, setActiveTab, isAuthenticated, onLoginClick, onLogoutClick }: SidebarProps) {
+export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
     const { t } = useI18n();
     const menuItems: TabType[] = ['Overview', 'Inventory', 'Products', 'Production Map'];
 
@@ -76,17 +72,17 @@ export default function Sidebar({ activeTab, setActiveTab, isAuthenticated, onLo
                 </nav>
             </div>
 
-            <div style={{ paddingTop: '16px', borderTop: `1px solid ${c.border}`, display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <PreferencesBar />
-                {isAuthenticated ? (
-                    <button onClick={onLogoutClick} style={{ width: '100%', padding: '10px', backgroundColor: alpha('danger', 0.2), color: c.danger, border: `1px solid ${alpha('danger', 0.4)}`, borderRadius: '6px', fontSize: '12px', fontFamily: 'monospace', cursor: 'pointer' }}>
-                        {t('sidebar.disconnect')}
-                    </button>
-                ) : (
-                    <button onClick={onLoginClick} style={{ width: '100%', padding: '12px', backgroundColor: c.accent, color: c.onAccent, border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', fontFamily: 'monospace', cursor: 'pointer', boxShadow: `0 4px 12px ${alpha('accent', 0.2)}` }}>
-                        {t('sidebar.signIn')}
-                    </button>
-                )}
+            <div style={{
+                paddingTop: '16px',
+                borderTop: `1px solid ${c.border}`,
+                fontSize: '11px',
+                lineHeight: '1.4',
+                color: c.textMuted,
+                textAlign: 'center',
+                opacity: 0.85,
+            }}>
+                <div>{t('footer.copyright')}</div>
+                <div>{t('footer.noCookies')}</div>
             </div>
         </aside>
     );
