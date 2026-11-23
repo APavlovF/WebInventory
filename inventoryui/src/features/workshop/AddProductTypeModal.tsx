@@ -42,7 +42,7 @@ type EditableProduct = Product & { markup?: number; workCost?: number; commissio
 
 interface MaterialRow {
     rowId: string;
-    unitId: string;   // '' = nothing selected yet
+    unitKey: string;  // getUnitKey() of the selected material, '' = nothing selected yet
     quantity: string; // amount of this material needed for ONE product
 }
 
@@ -53,9 +53,44 @@ interface CommissionRow {
     percent: string; // Entered in UI as percentage (e.g., "15" -> 0.15)
 }
 
+interface UnitKeyFields {
+    sku?: string | null;
+    name?: string | null;
+    measurement?: string | null;
+}
+
+interface ProductKeyFields {
+    sku?: string | null;
+    name?: string | null;
+}
+
+const normalize = (s?: string | null) => (s ?? '').trim().toLowerCase();
+
+// Mirrors C# Unit.GetUniqueKey(): Sku if non-empty, otherwise "Name|Measurement"
+function getUnitKey(item: UnitKeyFields): string {
+    const sku = normalize(item.sku);
+    if (sku) return `sku:${sku}`;
+
+    const name = normalize(item.name);
+    if (!name) return '';
+
+    return `nm:${name}|${normalize(item.measurement)}`;
+}
+
+// Mirrors C# Product.GetUniqueKey(): Sku if non-empty, otherwise Name
+function getProductKey(item: ProductKeyFields): string {
+    const sku = normalize(item.sku);
+    if (sku) return `sku:${sku}`;
+
+    const name = normalize(item.name);
+    if (!name) return '';
+
+    return `nm:${name}`;
+}
+
 const newMaterialRow = (): MaterialRow => ({
     rowId: crypto.randomUUID(),
-    unitId: '',
+    unitKey: '',
     quantity: '',
 });
 
@@ -64,8 +99,6 @@ const newCommissionRow = (): CommissionRow => ({
     name: '',
     percent: '0',
 });
-
-const normalize = (s: string) => s.trim().toLowerCase();
 
 const round = (n: number) => Math.round(n * 1e6) / 1e6;
 
@@ -100,11 +133,12 @@ export default function AddProductTypeModal({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [apiError, setApiError] = useState<string | null>(null);
 
-    // Map unit id -> unit price from materialStocks
+    // Map unit unique key -> unit price from materialStocks
     const unitPrices = useMemo(() => {
-        const map = new Map<number, number>();
+        const map = new Map<string, number>();
         materialStocks.forEach((us) => {
-            map.set(us.unit.id, us.price);
+            const key = getUnitKey(us.unit);
+            if (key) map.set(key, us.price);
         });
         return map;
     }, [materialStocks]);
@@ -128,23 +162,40 @@ export default function AddProductTypeModal({
         [products, editingId]
     );
 
-    // The dropdown materials, plus any material of the edited recipe that is no longer in stock
-    const allMaterials = useMemo(() => {
-        const map = new Map<number, Unit>();
-        materials.forEach((m) => map.set(m.id, m));
-        editingProduct?.items.forEach((i) => {
-            if (!map.has(i.unit.id)) map.set(i.unit.id, i.unit);
+    // Map unique product key -> existing active Product (O(1) collision detection)
+    const productByKey = useMemo(() => {
+        const map = new Map<string, Product>();
+        products.forEach((p) => {
+            if (p.isDeleted) return;
+            const key = getProductKey(p);
+            if (key) map.set(key, p);
         });
-        return Array.from(map.values());
+        return map;
+    }, [products]);
+
+    // The dropdown materials, plus any material of the edited recipe that is no longer in stock
+    const { allMaterials, materialByKey } = useMemo(() => {
+        const map = new Map<string, Unit>();
+        materials.forEach((m) => {
+            const key = getUnitKey(m);
+            if (key) map.set(key, m);
+        });
+        editingProduct?.items.forEach((i) => {
+            const key = getUnitKey(i.unit);
+            if (key && !map.has(key)) map.set(key, i.unit);
+        });
+        return {
+            allMaterials: Array.from(map.values()),
+            materialByKey: map,
+        };
     }, [materials, editingProduct]);
 
     // Live Wholesale & Retail price preview matching C# logic
     const { materialsTotalCost, wholesalePrice, retailPrice } = useMemo(() => {
         const materialsCost = rows.reduce((sum, r) => {
-            const unitId = Number(r.unitId);
             const qty = Number(r.quantity);
-            if (!unitId || !Number.isFinite(qty) || qty <= 0) return sum;
-            const unitPrice = unitPrices.get(unitId) ?? 0;
+            if (!r.unitKey || !Number.isFinite(qty) || qty <= 0) return sum;
+            const unitPrice = unitPrices.get(r.unitKey) ?? 0;
             return sum + unitPrice * qty;
         }, 0);
 
@@ -209,13 +260,17 @@ export default function AddProductTypeModal({
 
         setEditingId(p.id);
         setProductName(p.name);
-        setSku(p.sku);
+        setSku(p.sku ?? '');
         setMarkupPercent(String(round(((p.markup ?? 1) - 1) * 100)));
         setRetailRatePercent(String(round(((p.retailRate ?? 1) - 1) * 100)));
         setWorkCost(String(p.workCost ?? 0));
         setRows(
             p.items.length > 0
-                ? p.items.map((i) => ({ rowId: crypto.randomUUID(), unitId: String(i.unit.id), quantity: String(i.quantity) }))
+                ? p.items.map((i) => ({
+                      rowId: crypto.randomUUID(),
+                      unitKey: getUnitKey(i.unit),
+                      quantity: String(i.quantity),
+                  }))
                 : [newMaterialRow()]
         );
         setCommissionRows(
@@ -235,11 +290,11 @@ export default function AddProductTypeModal({
     const handleRemoveRow = (rowId: string) =>
         setRows((prev) => (prev.length === 1 ? prev : prev.filter((r) => r.rowId !== rowId)));
 
-    const handleRowChange = (rowId: string, field: 'unitId' | 'quantity', value: string) =>
+    const handleRowChange = (rowId: string, field: 'unitKey' | 'quantity', value: string) =>
         setRows((prev) => prev.map((r) => (r.rowId === rowId ? { ...r, [field]: value } : r)));
 
-    const isTakenByOtherRow = (rowId: string, unitId: number) =>
-        rows.some((r) => r.rowId !== rowId && r.unitId === String(unitId));
+    const isTakenByOtherRow = (rowId: string, unitKey: string) =>
+        unitKey !== '' && rows.some((r) => r.rowId !== rowId && r.unitKey === unitKey);
 
     // Commission row handlers
     const handleAddCommission = () => setCommissionRows((prev) => [...prev, newCommissionRow()]);
@@ -293,10 +348,11 @@ export default function AddProductTypeModal({
     const isRetailValid = retailRatePercent.trim() !== '' && Number.isFinite(retailNum);
     const isWorkCostValid = workCost.trim() !== '' && Number.isFinite(workCostNum) && workCostNum >= 0;
 
-    // The server finds products by name, so two products must never share one
-    const nameTaken =
-        productName.trim() !== '' &&
-        products.some((p) => !p.isDeleted && p.id !== editingId && normalize(p.name) === normalize(productName));
+    // The server identifies products by GetUniqueKey() (SKU if provided, otherwise Name)
+    const candidateKey = getProductKey({ name: productName, sku });
+    const conflictingProduct = candidateKey ? productByKey.get(candidateKey) : undefined;
+    const keyTaken = conflictingProduct !== undefined && conflictingProduct.id !== editingId;
+
     // Old products may come without the data that built their price: the fields then start at 0
     const missingPricing =
         editingProduct !== undefined &&
@@ -304,7 +360,7 @@ export default function AddProductTypeModal({
 
     const areMaterialsValid =
         rows.length > 0 &&
-        rows.every((r) => r.unitId !== '' && r.quantity.trim() !== '' && Number(r.quantity) > 0);
+        rows.every((r) => r.unitKey !== '' && r.quantity.trim() !== '' && Number(r.quantity) > 0);
 
     const duplicateCommissionIds = new Set<string>();
     const seenCommissionNames = new Set<string>();
@@ -331,8 +387,7 @@ export default function AddProductTypeModal({
 
     const isFormValid =
         productName.trim().length > 0 &&
-        !nameTaken &&
-        sku.trim().length > 0 &&
+        !keyTaken &&
         isMarkupValid &&
         isRetailValid &&
         isWorkCostValid &&
@@ -361,7 +416,7 @@ export default function AddProductTypeModal({
                 rate: round(Number(c.percent) / 100),
             })),
             items: rows.map((r) => {
-                const unit = allMaterials.find((m) => String(m.id) === r.unitId)!;
+                const unit = materialByKey.get(r.unitKey)!;
                 return { quantity: Number(r.quantity), unit };
             }),
         };
@@ -429,10 +484,13 @@ export default function AddProductTypeModal({
                                 onChange={(e) => setProductName(e.target.value)}
                                 placeholder={t('addType.placeholderName')}
                                 maxLength={1000}
-                                style={{ ...inputStyle, borderColor: nameTaken ? clr.danger : alpha('accent', 0.4) }}
+                                style={{
+                                    ...inputStyle,
+                                    borderColor: keyTaken && sku.trim() === '' ? clr.danger : alpha('accent', 0.4),
+                                }}
                                 required
                             />
-                            {nameTaken && (
+                            {keyTaken && (
                                 <div style={{ color: clr.danger, fontSize: '12px', marginTop: '4px', paddingLeft: '4px' }}>
                                     {t('addType.nameTaken')}
                                 </div>
@@ -447,8 +505,10 @@ export default function AddProductTypeModal({
                                 onChange={(e) => setSku(e.target.value)}
                                 placeholder={t('addType.placeholderSku')}
                                 maxLength={200}
-                                style={inputStyle}
-                                required
+                                style={{
+                                    ...inputStyle,
+                                    borderColor: keyTaken && sku.trim() !== '' ? clr.danger : alpha('accent', 0.4),
+                                }}
                             />
                         </div>
                     </div>
@@ -518,8 +578,7 @@ export default function AddProductTypeModal({
 
                         <div style={{ ...scrollAreaStyle, maxHeight: '150px' }}>
                             {rows.map((row) => {
-                                const selectedUnitId = Number(row.unitId);
-                                const unitPrice = selectedUnitId ? unitPrices.get(selectedUnitId) : undefined;
+                                const unitPrice = row.unitKey ? unitPrices.get(row.unitKey) : undefined;
                                 const qty = Number(row.quantity);
                                 const rowTotal =
                                     unitPrice !== undefined && Number.isFinite(qty) && qty > 0
@@ -531,18 +590,21 @@ export default function AddProductTypeModal({
                                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                             <Combobox
                                                 searchable
-                                                value={row.unitId}
-                                                onChange={(v) => handleRowChange(row.rowId, 'unitId', v)}
+                                                value={row.unitKey}
+                                                onChange={(v) => handleRowChange(row.rowId, 'unitKey', v)}
                                                 placeholder={t('addType.selectMaterial')}
                                                 style={{ flex: 2 }}
                                                 options={allMaterials.map((m) => {
-                                                    const price = unitPrices.get(m.id);
+                                                    const uKey = getUnitKey(m);
+                                                    const price = unitPrices.get(uKey);
                                                     const baseLabel = m.measurement ? `${m.name} (${m.measurement})` : m.name;
                                                     return {
-                                                        value: String(m.id),
+                                                        value: uKey,
                                                         label: baseLabel,
-                                                        hint: price !== undefined ? `$${price.toFixed(2)}` : undefined,
-                                                        disabled: isTakenByOtherRow(row.rowId, m.id),
+                                                        hint: [m.sku, price !== undefined ? `$${price.toFixed(2)}` : undefined]
+                                                            .filter(Boolean)
+                                                            .join(' · '),
+                                                        disabled: isTakenByOtherRow(row.rowId, uKey),
                                                     };
                                                 })}
                                             />
@@ -561,7 +623,7 @@ export default function AddProductTypeModal({
                                                 type="text"
                                                 readOnly
                                                 value={
-                                                    row.unitId === ''
+                                                    row.unitKey === ''
                                                         ? ''
                                                         : unitPrice !== undefined
                                                         ? `$${unitPrice.toFixed(2)}`

@@ -31,7 +31,7 @@ public class ProductController(EfDbContext context) : ControllerBase
         }
 
         int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        string normalizedName = product.Name.Trim();
+        string normalizedName = product.GetUniqueKey();
 
         // Resolve units first so validation fails early if any unit is invalid
         foreach (Item item in product.Items)
@@ -50,8 +50,11 @@ public class ProductController(EfDbContext context) : ControllerBase
         Product existingProduct = await context.Products
             .Include(p => p.Items)
             .Include(p => p.Commissions)
-            .FirstOrDefaultAsync(p => p.UserId == userId && p.Name.ToLower() == normalizedName.ToLower());
+            .Where(p => p.UserId == userId)
+            .Where(Product.MatchesUniqueKeyOf(product))
+            .FirstOrDefaultAsync();
 
+        product.TrimKeyProperties();
         if (existingProduct != null)
         {
             if (!existingProduct.IsDeleted)
@@ -61,7 +64,7 @@ public class ProductController(EfDbContext context) : ControllerBase
 
             // Restore and update the soft-deleted product
             existingProduct.IsDeleted = false;
-            existingProduct.Name = normalizedName;
+            existingProduct.Name = product.Name;
             existingProduct.Sku = product.Sku;
             existingProduct.Price = product.Price;
             existingProduct.RetailRate = product.RetailRate;
@@ -82,7 +85,6 @@ public class ProductController(EfDbContext context) : ControllerBase
             return Ok(existingProduct);
         }
 
-        product.Name = normalizedName;
         product.UserId = userId;
         product.IsDeleted = false;
         product.Commissions = resolvedCommissions;
@@ -177,7 +179,7 @@ public class ProductController(EfDbContext context) : ControllerBase
     async Task<Product> GetOrUpdateProductAsync(ProductStock productStock, int userId, Dictionary<string,
         ProductStock> dbProducts, bool saveProducts)
     {
-        if (saveProducts && dbProducts.TryGetValue(productStock.Product.Name, out ProductStock existingStock))
+        if (saveProducts && dbProducts.TryGetValue(productStock.Product.GetUniqueKey(), out ProductStock existingStock))
         {
             existingStock.Quantity += productStock.Quantity;
             return existingStock.Product;
@@ -204,10 +206,11 @@ public class ProductController(EfDbContext context) : ControllerBase
             .Include(u => u.Unit)
             .ToDictionaryAsync(k => k.Unit.Name);
         Dictionary<string, ProductStock> dbProducts = saveProducts
-            ? await context.ProductStocks
+            ? (await context.ProductStocks
                 .Where(p => p.Product.UserId == userId)
                 .Include(p => p.Product)
-                .ToDictionaryAsync(k => k.Product.Name)
+                .ToListAsync())
+                .ToDictionary(k => k.Product.GetUniqueKey())
             : new Dictionary<string, ProductStock>();
 
         foreach (ProductStock productStock in products)

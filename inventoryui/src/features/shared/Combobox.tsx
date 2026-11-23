@@ -2,8 +2,9 @@
 // One dropdown used by all forms, styled with the app theme.
 //  - allowCustom = false: a normal "pick one" dropdown (value = the picked option's value)
 //  - allowCustom = true : a text field with suggestions; you can pick one OR type something new
-//  - searchable  = true : a text field that filters a long list as you type, but only a picked option
-//                         sets the value (it shows the option's label). clearable adds a ✕ that sets ''.
+//  - searchable  = true : a text field that filters a long list as you type.
+//                         If allowCustom is also true, typing updates the value directly;
+//                         otherwise only a picked option sets the value. clearable adds a ✕ that sets ''.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
@@ -51,21 +52,26 @@ export default function Combobox({
     const [isOpen, setIsOpen] = useState(false);
     const [activeIndex, setActiveIndex] = useState(-1);
     const [rect, setRect] = useState<DOMRect | null>(null);
-    const [query, setQuery] = useState(''); // what was typed in searchable mode
+    const [query, setQuery] = useState(''); // what was typed in strict searchable mode
     const wrapperRef = useRef<HTMLDivElement>(null);
     const listRef = useRef<HTMLDivElement>(null);
     const justOpenedOnFocus = useRef(false);
 
-    // Filter options by typed query (searchable) or typed value (allowCustom)
+    const isFreeText = allowCustom;
+    const isStrictSearch = searchable && !allowCustom;
+
+    // Filter options by typed query (strict searchable) or typed value (allowCustom)
     const visible = useMemo(() => {
-        if (searchable) {
+        if (isStrictSearch) {
             const q = normalize(query);
             return q ? options.filter((o) => normalize(`${o.label} ${o.hint ?? ''}`).includes(q)) : options;
         }
-        if (!allowCustom) return options;
-        const q = value.trim().toLowerCase();
-        return q ? options.filter((o) => o.label.toLowerCase().includes(q)) : options;
-    }, [options, value, allowCustom, searchable, query]);
+        if (isFreeText) {
+            const q = normalize(value);
+            return q ? options.filter((o) => normalize(`${o.label} ${o.hint ?? ''}`).includes(q)) : options;
+        }
+        return options;
+    }, [options, value, isFreeText, isStrictSearch, query]);
 
     const selected = options.find((o) => o.value === value);
 
@@ -73,7 +79,7 @@ export default function Combobox({
         if (wrapperRef.current) setRect(wrapperRef.current.getBoundingClientRect());
         setIsOpen(true);
         setActiveIndex(-1);
-        setQuery(''); // a searchable list always opens complete
+        setQuery(''); // a strict searchable list always opens complete
     };
 
     const close = () => {
@@ -155,7 +161,7 @@ export default function Combobox({
         } else if (e.key === 'Enter' && isOpen && activeIndex >= 0 && visible[activeIndex]) {
             e.preventDefault(); // pick the highlighted option instead of submitting the form
             pick(visible[activeIndex]);
-        } else if (e.key === 'Enter' && searchable && isOpen) {
+        } else if (e.key === 'Enter' && isStrictSearch && isOpen) {
             e.preventDefault(); // never submit the form from the search box; a single match is picked
             if (visible.length === 1) pick(visible[0]);
         } else if (e.key === 'Escape' && isOpen) {
@@ -192,7 +198,7 @@ export default function Combobox({
 
     return (
         <div ref={wrapperRef} style={{ position: 'relative', minWidth: 0, ...style }}>
-            {searchable ? (
+            {isStrictSearch ? (
                 <>
                     <input
                         type="text"
@@ -252,7 +258,7 @@ export default function Combobox({
                         </span>
                     )}
                 </>
-            ) : allowCustom ? (
+            ) : isFreeText ? (
                 <input
                     type="text"
                     value={value}

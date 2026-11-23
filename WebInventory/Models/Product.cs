@@ -1,9 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using System.Linq.Expressions;
 
 namespace WebInventory.Models;
 
-public class Product : IEntityTypeConfiguration<Product>
+public class Product : IEntityTypeConfiguration<Product>, IHasUniqueKey<Product>
 {
     public int Id { get; set; }
     public List<Commission> Commissions { get; set; }
@@ -46,4 +47,28 @@ public class Product : IEntityTypeConfiguration<Product>
             < 0m => currentPrice / (1m - Math.Abs(commission.Rate)),
             _ => currentPrice * (1m + commission.Rate)
         };
+
+    public string GetUniqueKey() => (Sku ?? Name).Trim();
+
+    public static Expression<Func<Product, bool>> MatchesUniqueKeyOf(Product candidate)
+    {
+        string sku = candidate.Sku?.Trim();
+        string name = candidate.Name.Trim();
+        if (!string.IsNullOrEmpty(sku))
+        {
+            string skuLower = sku.ToLower();
+
+            return p => p.Sku != null && p.Sku.ToLower() == skuLower;
+        }
+
+        string nameLower = name.ToLower();
+
+        return p => p.Name.ToLower() == nameLower;
+    }
+
+    public void TrimKeyProperties()
+    {
+        Name = Name.Trim();
+        if (!string.IsNullOrWhiteSpace(Sku)) Sku = Sku.Trim();
+    }
 }

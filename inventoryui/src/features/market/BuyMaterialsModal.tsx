@@ -32,44 +32,65 @@ interface BuyMaterialsModalProps {
 
 interface BuyRow {
     rowId: string;
+    sku: string;         // unique key when provided
     name: string;        // typed or picked from the combobox
     quantity: string;
     price: string;       // price per unit
-    measurement: string; // only used when the material is new
+    measurement: string; // unit of measurement
 }
 
 // Expected shape returned by your C# invoice parser endpoint (matches List<UnitStock>)
 interface ParsedInvoiceItem {
     unit?: {
+        sku?: string;
         name?: string;
         measurement?: string;
     };
+    sku?: string;
     name?: string;
     measurement?: string;
     quantity: number;
     price: number;
 }
 
+export interface UnitKeyFields {
+    sku?: string | null;
+    name?: string | null;
+    measurement?: string | null;
+}
+
+const norm = (s?: string | null) => (s ?? '').trim().toLowerCase();
+
+// Matches C# Unit.GetUniqueKey(): Sku if non-empty, otherwise Name|Measurement
+export function getUnitKey(item: UnitKeyFields): string {
+    const sku = norm(item.sku);
+    if (sku) return sku;
+
+    const name = norm(item.name);
+    if (!name) return '';
+
+    return `${name}|${norm(item.measurement)}`;
+}
+
 const newRow = (): BuyRow => ({
     rowId: crypto.randomUUID(),
+    sku: '',
     name: '',
     quantity: '1',
     price: '0',
     measurement: '',
 });
 
-const normalize = (s: string) => s.trim().toLowerCase();
-
 // Avoid floating-point noise such as 0.1 + 0.2 = 0.30000000000000004
 const round = (n: number) => Math.round(n * 1e6) / 1e6;
 
-// SKU for a brand-new material, generated from its name: "Oak wood" -> "OAK-WOOD"
+// SKU fallback for a brand-new material when user leaves SKU blank: "Oak wood" -> "OAK-WOOD"
 const makeSku = (name: string) =>
     name.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-+|-+$/g, '') || name.trim().toUpperCase();
 
 const gridRowLayout = {
     display: 'grid',
-    gridTemplateColumns: '3fr 1fr 1fr 1fr 1fr 36px',
+    gridTemplateColumns: '1.3fr 2.5fr 0.9fr 1fr 1fr 1fr 36px',
 } as const;
 
 export default function BuyMaterialsModal({
@@ -100,6 +121,7 @@ export default function BuyMaterialsModal({
         setNotice(null);
         fileInputRef.current?.click();
     };
+
     useEffect(() => {
         if (isOpen && autoOpenImport) {
             setTimeout(() => {
@@ -109,11 +131,28 @@ export default function BuyMaterialsModal({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, autoOpenImport]);
 
-    // Known materials by lower-case name
-    const unitByName = useMemo(() => {
-        const map = new Map<string, Unit>();
-        units.forEach((u) => map.set(normalize(u.name), u));
-        return map;
+    // Known materials indexed by unique key (SKU or name|measurement), plus name/sku helpers for autofill
+    const { unitByKey, unitsByName, unitBySku } = useMemo(() => {
+        const byKey = new Map<string, Unit>();
+        const byName = new Map<string, Unit[]>();
+        const bySku = new Map<string, Unit>();
+
+        units.forEach((u) => {
+            const k = getUnitKey(u);
+            if (k) byKey.set(k, u);
+
+            const skuNorm = norm(u.sku);
+            if (skuNorm) bySku.set(skuNorm, u);
+
+            const n = norm(u.name);
+            if (n) {
+                const list = byName.get(n) ?? [];
+                list.push(u);
+                byName.set(n, list);
+            }
+        });
+
+        return { unitByKey: byKey, unitsByName: byName, unitBySku: bySku };
     }, [units]);
 
     // Current stock and last known price per unit id
@@ -127,17 +166,29 @@ export default function BuyMaterialsModal({
         return { stockByUnitId: stockMap, priceByUnitId: priceMap };
     }, [materialStocks]);
 
-    const rowInfos = rows.map((row) => {
-        const key = normalize(row.name);
-        const unit = unitByName.get(key);
-        const isNew = key !== '' && !unit;
+    // Pre-compute keys for O(n) duplicate detection
+    const rowKeys = useMemo(() => rows.map((r) => getUnitKey(r)), [rows]);
+
+    const keyCounts = useMemo(() => {
+        const counts = new Map<string, number>();
+        for (const k of rowKeys) {
+            if (k) counts.set(k, (counts.get(k) ?? 0) + 1);
+        }
+        return counts;
+    }, [rowKeys]);
+
+    const rowInfos = rows.map((row, idx) => {
+        const key = rowKeys[idx];
+        const unit = key ? unitByKey.get(key) : undefined;
+        const nameTrimmed = row.name.trim();
+        const isNew = nameTrimmed !== '' && !unit;
         const qty = Number(row.quantity);
         const qtyValid = row.quantity.trim() !== '' && Number.isFinite(qty) && qty > 0;
         const price = Number(row.price);
         const priceValid = row.price.trim() !== '' && Number.isFinite(price) && price >= 0;
         const subtotal = qtyValid && priceValid ? round(qty * price) : 0;
         const existing = unit ? round(stockByUnitId.get(unit.id) || 0) : 0;
-        const measurement = unit ? unit.measurement : row.measurement.trim();
+        const measurement = row.measurement.trim();
 
         return {
             row,
@@ -149,8 +200,9 @@ export default function BuyMaterialsModal({
             subtotal,
             existing,
             measurement,
-            duplicate: key !== '' && rows.some((r) => r.rowId !== row.rowId && normalize(r.name) === key),
+            duplicate: key !== '' && (keyCounts.get(key) ?? 0) > 1,
             exceedsLimit: key !== '' && qtyValid && round(existing + qty) > maxStock,
+            missingName: key !== '' && nameTrimmed === '',
             missingMeasurement: isNew && measurement === '',
         };
     });
@@ -162,6 +214,7 @@ export default function BuyMaterialsModal({
         rowInfos.every(
             (r) =>
                 r.key !== '' &&
+                !r.missingName &&
                 r.qtyValid &&
                 r.priceValid &&
                 !r.duplicate &&
@@ -188,19 +241,80 @@ export default function BuyMaterialsModal({
     const handleRemoveRow = (rowId: string) =>
         setRows((prev) => (prev.length === 1 ? prev : prev.filter((r) => r.rowId !== rowId)));
 
-    const handleRowChange = (rowId: string, field: 'name' | 'quantity' | 'price' | 'measurement', value: string) =>
+    const handleRowChange = (
+        rowId: string,
+        field: 'sku' | 'name' | 'quantity' | 'price' | 'measurement',
+        value: string
+    ) =>
         setRows((prev) =>
             prev.map((r) => {
                 if (r.rowId !== rowId) return r;
 
+                if (field === 'sku') {
+                    const matchedBySku = unitBySku.get(norm(value));
+                    if (matchedBySku) {
+                        const existingPrice = priceByUnitId.get(matchedBySku.id);
+                        return {
+                            ...r,
+                            sku: value,
+                            name: matchedBySku.name,
+                            measurement: matchedBySku.measurement,
+                            ...(existingPrice !== undefined ? { price: String(existingPrice) } : {}),
+                        };
+                    }
+                    return { ...r, sku: value };
+                }
+
                 if (field === 'name') {
-                    const matchedUnit = unitByName.get(normalize(value));
-                    const existingPrice = matchedUnit ? priceByUnitId.get(matchedUnit.id) : undefined;
+                    const nameNorm = norm(value);
+                    const exactMatch = unitByKey.get(`${nameNorm}|${norm(r.measurement)}`);
+                    const nameMatches = unitsByName.get(nameNorm);
+                    const matchedUnit = exactMatch ?? (nameMatches?.length === 1 ? nameMatches[0] : undefined);
+
+                    if (matchedUnit) {
+                        const existingPrice = priceByUnitId.get(matchedUnit.id);
+                        return {
+                            ...r,
+                            name: value,
+                            sku: matchedUnit.sku ?? '',
+                            measurement: matchedUnit.measurement,
+                            ...(existingPrice !== undefined ? { price: String(existingPrice) } : {}),
+                        };
+                    }
+
+                    // User edited the name to something new: clear auto-linked SKU if it belonged to an existing unit
+                    const prevUnitBySku = unitBySku.get(norm(r.sku));
+                    const shouldClearSku = prevUnitBySku && norm(prevUnitBySku.name) !== nameNorm;
 
                     return {
                         ...r,
                         name: value,
-                        ...(existingPrice !== undefined ? { price: String(existingPrice) } : {}),
+                        ...(shouldClearSku ? { sku: '' } : {}),
+                    };
+                }
+
+                if (field === 'measurement') {
+                    const nameNorm = norm(r.name);
+                    const matchedUnit = unitByKey.get(`${nameNorm}|${norm(value)}`);
+
+                    if (matchedUnit) {
+                        const existingPrice = priceByUnitId.get(matchedUnit.id);
+                        return {
+                            ...r,
+                            measurement: value,
+                            sku: matchedUnit.sku ?? '',
+                            ...(existingPrice !== undefined ? { price: String(existingPrice) } : {}),
+                        };
+                    }
+
+                    // User changed measurement (e.g. m2 -> pc): detach auto-linked SKU so it becomes a new material
+                    const prevUnitBySku = unitBySku.get(norm(r.sku));
+                    const shouldClearSku = prevUnitBySku && norm(prevUnitBySku.measurement) !== norm(value);
+
+                    return {
+                        ...r,
+                        measurement: value,
+                        ...(shouldClearSku ? { sku: '' } : {}),
                     };
                 }
 
@@ -288,12 +402,18 @@ export default function BuyMaterialsModal({
             }
 
             const importedRows: BuyRow[] = parsedItems.map((item) => {
+                const rawSku = (item.unit?.sku ?? item.sku ?? '').trim();
                 const rawName = (item.unit?.name ?? item.name ?? '').trim();
-                const matchedUnit = unitByName.get(normalize(rawName));
                 const rawMeasurement = (item.unit?.measurement ?? item.measurement ?? '').trim();
+
+                const itemKey = getUnitKey({ sku: rawSku, name: rawName, measurement: rawMeasurement });
+                const matchedUnit =
+                    (itemKey ? unitByKey.get(itemKey) : undefined) ??
+                    (unitsByName.get(norm(rawName))?.length === 1 ? unitsByName.get(norm(rawName))![0] : undefined);
 
                 return {
                     rowId: crypto.randomUUID(),
+                    sku: matchedUnit?.sku ?? rawSku,
                     name: matchedUnit ? matchedUnit.name : rawName,
                     quantity: String(item.quantity ?? 1),
                     price: String(item.price ?? 0),
@@ -328,7 +448,7 @@ export default function BuyMaterialsModal({
                 r.unit ?? {
                     name: r.row.name.trim(),
                     measurement: r.measurement,
-                    sku: makeSku(r.row.name),
+                    sku: r.row.sku.trim() || makeSku(r.row.name),
                 },
             quantity: Number(r.row.quantity),
             price: Number(r.row.price),
@@ -364,7 +484,7 @@ export default function BuyMaterialsModal({
                 className="modal-form"
                 style={{
                     ...modalStyle,
-                    width: '900px',
+                    width: '1020px',
                     maxWidth: '95vw',
                 }}
             >
@@ -418,6 +538,7 @@ export default function BuyMaterialsModal({
                                 ...gridRowLayout,
                             }}
                         >
+                            <span style={{ ...headerLabelStyle, width: '100%' }}>{t('common.sku')}</span>
                             <span style={{ ...headerLabelStyle, width: '100%' }}>{t('buy.colMaterial')}</span>
                             <span style={{ ...headerLabelStyle, width: '100%' }}>{t('common.quantity')}</span>
                             <span style={{ ...headerLabelStyle, width: '100%' }}>{t('common.unit')}</span>
@@ -431,13 +552,15 @@ export default function BuyMaterialsModal({
                                 ? t('buy.duplicate')
                                 : info.exceedsLimit
                                     ? t('common.exceedsMax', { stock: info.existing, max: maxStock })
-                                    : info.row.quantity !== '' && !info.qtyValid
-                                        ? t('buy.qtyAboveZero')
-                                        : info.row.price !== '' && !info.priceValid
-                                            ? t('buy.validPrice')
-                                            : info.missingMeasurement
-                                                ? t('buy.needMeasurement')
-                                                : null;
+                                    : info.missingName
+                                        ? t('buy.placeholderName')
+                                        : info.row.quantity !== '' && !info.qtyValid
+                                            ? t('buy.qtyAboveZero')
+                                            : info.row.price !== '' && !info.priceValid
+                                                ? t('buy.validPrice')
+                                                : info.missingMeasurement
+                                                    ? t('buy.needMeasurement')
+                                                    : null;
 
                             return (
                                 <div key={info.row.rowId} style={{ marginBottom: '8px' }}>
@@ -447,6 +570,18 @@ export default function BuyMaterialsModal({
                                             ...gridRowLayout,
                                         }}
                                     >
+                                        <input
+                                            type="text"
+                                            value={info.row.sku}
+                                            onChange={(e) => handleRowChange(info.row.rowId, 'sku', e.target.value)}
+                                            placeholder={t('common.sku')}
+                                            maxLength={100}
+                                            style={{
+                                                ...inputStyle,
+                                                borderColor: info.duplicate ? c.danger : alpha('accent', 0.4),
+                                            }}
+                                        />
+
                                         <Combobox
                                             searchable
                                             value={info.row.name}
@@ -454,12 +589,12 @@ export default function BuyMaterialsModal({
                                             placeholder={t('buy.placeholderName')}
                                             maxLength={200}
                                             allowCustom
-                                            invalid={info.duplicate}
+                                            invalid={info.duplicate || info.missingName}
                                             style={{ width: '100%', minWidth: 0 }}
                                             options={units.map((u) => ({
                                                 value: u.name,
                                                 label: u.name,
-                                                hint: u.measurement,
+                                                hint: u.sku ? `${u.sku} · ${u.measurement}` : u.measurement,
                                             }))}
                                         />
 
@@ -477,14 +612,13 @@ export default function BuyMaterialsModal({
 
                                         <input
                                             type="text"
-                                            value={info.unit ? info.unit.measurement : info.row.measurement}
-                                            readOnly={Boolean(info.unit)}
+                                            value={info.row.measurement}
                                             onChange={(e) =>
                                                 handleRowChange(info.row.rowId, 'measurement', e.target.value)
                                             }
                                             placeholder={t('buy.placeholderMeasurement')}
                                             maxLength={50}
-                                            style={{ ...inputStyle, opacity: info.unit ? 0.6 : 1 }}
+                                            style={inputStyle}
                                         />
 
                                         <input
@@ -671,7 +805,6 @@ export default function BuyMaterialsModal({
                                 {t('common.cancel')}
                             </button>
                         </div>
-
                     </div>
                 )}
             </div>

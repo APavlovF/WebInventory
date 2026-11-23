@@ -21,15 +21,16 @@ public class MarketController(EfDbContext context) : ControllerBase
         }
 
         int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        Dictionary<string, UnitStock> dbMaterials = await context.UnitStocks
-            .Where(u => u.UserId == userId)
-            .Include(u => u.Unit)
-            .ToDictionaryAsync(k => k.Unit.Name, StringComparer.OrdinalIgnoreCase);
-        Dictionary<string, Unit> dbUnits = await context.Units
-            .ToDictionaryAsync(u => u.Name, StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, UnitStock> dbMaterials = (await context.UnitStocks
+                .Where(u => u.UserId == userId)
+                .Include(u => u.Unit)
+                .ToListAsync())
+            .ToDictionary(k => k.Unit.GetUniqueKey(), StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, Unit> dbUnits =
+            (await context.Units.ToListAsync()).ToDictionary(u => u.GetUniqueKey(), StringComparer.OrdinalIgnoreCase);
         foreach (UnitStock material in materials)
         {
-            string unitName = material.Unit.Name.Trim();
+            string unitName = material.Unit.GetUniqueKey();
             if (dbMaterials.TryGetValue(unitName, out UnitStock existingStock))
             {
                 if (existingStock.IsDeleted)
@@ -62,7 +63,7 @@ public class MarketController(EfDbContext context) : ControllerBase
                 }
                 else
                 {
-                    material.Unit.Name = unitName;
+                    material.Unit.TrimKeyProperties();
                     dbUnits[unitName] = material.Unit;
                 }
 
@@ -83,11 +84,12 @@ public class MarketController(EfDbContext context) : ControllerBase
     public async Task<IActionResult> SellProducts([FromBody] List<ProductStock> products)
     {
         int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        Dictionary<string, ProductStock> stock = await context.ProductStocks.Where(p => p.Product.UserId == userId)
-            .Include(p => p.Product).ToDictionaryAsync(k => k.Product.Name);
+        Dictionary<string, ProductStock> stock =
+            (await context.ProductStocks.Where(p => p.Product.UserId == userId).Include(p => p.Product).ToListAsync())
+            .ToDictionary(k => k.Product.GetUniqueKey());
         foreach (ProductStock product in products)
         {
-            if (stock.TryGetValue(product.Product.Name, out ProductStock s))
+            if (stock.TryGetValue(product.Product.GetUniqueKey(), out ProductStock s))
             {
                 s.Quantity -= product.Quantity;
             }
