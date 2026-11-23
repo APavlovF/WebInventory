@@ -57,6 +57,7 @@ export function useInventory(isLoggedIn: boolean) {
         setIsLoading(true);
         setError(null);
         try {
+            const byName = (a: string, b: string) => a.localeCompare(b);
             // Replace these URLs with your real routes
             const [prods, pStocks, uStocks, comms] = await Promise.all([
                 postJson<Product[]>('/api/product/fetch'),
@@ -65,6 +66,12 @@ export function useInventory(isLoggedIn: boolean) {
                 postJson<Commission[]>('/api/office/fetch'),
             ]);
             if (id !== requestId.current) return; // a newer load (e.g. after login/logout) replaced this one
+            // Sort all lists alphabetically once upon arrival
+            prods.sort((a, b) => byName(a.name, b.name));
+            pStocks.sort((a, b) => byName(a.product.name, b.product.name)); // Adjust property path if needed
+            uStocks.sort((a, b) => byName(a.unit.name, b.unit.name));
+            comms.sort((a, b) => byName(a.name, b.name));
+
             setProducts(prods);
             setProductStocks(pStocks);
             setUnitStocks(uStocks);
