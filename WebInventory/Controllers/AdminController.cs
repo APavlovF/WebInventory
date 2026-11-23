@@ -27,4 +27,7 @@ public class AdminController(EfDbContext db) : ControllerBase
 
         return Ok(invitation.Token);
     }
+
+    [HttpGet("ping")]
+    public IActionResult Ping() => Ok();
 }
