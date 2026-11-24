@@ -1,10 +1,10 @@
-
-using Google.GenAI;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using QuestPDF.Infrastructure;
 using System.Text;
+using Google.GenAI;
+using OpenAI;
 using WebInventory.Data;
 using WebInventory.DataAi;
 using WebInventory.InvoiceAi;
@@ -19,6 +19,9 @@ builder.Services.Configure<MaterialsParserOptions>(builder.Configuration.GetSect
 builder.Services.Configure<ProductsParserOptions>(builder.Configuration.GetSection(ProductsParserOptions.SectionName));
 
 builder.Services.AddSingleton(new Client(apiKey: builder.Configuration["GEMINI_API_KEY"]));
+builder.Services.AddSingleton(_ => new OpenAIClient(apiKey: builder.Configuration["Groq:ApiKey"]));
+builder.Services.AddSingleton<IAiClient, GroqAiClient>();
+
 builder.Services.AddTransient<InvoiceParser>();
 builder.Services.AddSingleton<JwtService>();
 builder.Services.AddTransient<MaterialsParser>();

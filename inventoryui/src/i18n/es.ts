@@ -1,11 +1,13 @@
 // src/i18n/es.ts  - Español
 import type { TKey } from './en';
 
-export const es: Record<TKey, string> = {
+export const es: Record<TKey, string> = {    
     'addType.addCommission': '+ Añadir comisión',
+    'addType.addTab': '+ Agregar nuevo Producto',
     'addType.commissionName': 'Nombre de la comisión',
     'addType.commissions': 'Comisiones e impuestos (opcional)',
     'addType.duplicateCommission': 'Nombre de comisión duplicado',
+    'addType.duplicateTab': 'Nombre o SKU del producto duplicado en otra pestaña',
     'addType.editProduct': 'Editar producto',
     'addType.errFailed': 'Error al guardar el producto ({status})',
     'addType.errSaving': 'Error al guardar el producto en la base de datos.',
@@ -16,15 +18,18 @@ export const es: Record<TKey, string> = {
     'addType.missingPricing': 'Este producto no tiene margen, costo de mano de obra ni comisiones guardados; esos campos empiezan en 0 y el precio se recalculará.',
     'addType.nameTaken': 'Ya existe un producto con este nombre',
     'addType.newCommission': 'Se guardará la nueva comisión "{name}"',
+    'addType.newTab': 'Producto',
     'addType.placeholderName': 'p. ej., Silla de madera',
     'addType.placeholderSku': 'p. ej., CHAIR-OAK-001',
     'addType.productName': 'Nombre del producto',
     'addType.qty': 'Cant.',
     'addType.removeCommission': 'Quitar comisión',
+    'addType.removeTab': 'Eliminar pestaña',
     'addType.retailPrice': 'Precio minorista:',
     'addType.retailRate': 'Tasa minorista (%)',
     'addType.save': 'Guardar tipo de producto',
     'addType.saveChanges': 'Guardar cambios',
+    'addType.saveMultiple': 'Guardar {count} Tipos de Producto',
     'addType.selectMaterial': '-- Seleccione un material --',
     'addType.title': 'Añadir tipo de producto',
     'addType.titleEdit': 'Editar tipo de producto',

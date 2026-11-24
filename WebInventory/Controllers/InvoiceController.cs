@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using WebInventory.InvoiceAi;
+using WebInventory.Services;
 
 namespace WebInventory.Controllers;
 
@@ -9,11 +10,6 @@ namespace WebInventory.Controllers;
 // [Authorize] // Uncomment if only authenticated users can import invoices
 public class InvoiceController(InvoiceParser invoiceParser) : ControllerBase
 {
-    static readonly JsonSerializerOptions CamelCaseOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
-
     [HttpPost("parse")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(10 * 1024 * 1024)] // 10 MB max
@@ -67,7 +63,7 @@ public class InvoiceController(InvoiceParser invoiceParser) : ControllerBase
 
         async Task SendEventAsync(string eventName, object payload)
         {
-            var json = JsonSerializer.Serialize(payload, CamelCaseOptions);
+            var json = JsonSerializer.Serialize(payload, JsonService.CamelCaseOptions);
             await Response.WriteAsync($"event: {eventName}\ndata: {json}\n\n", cancellationToken);
             await Response.Body.FlushAsync(cancellationToken);
         }

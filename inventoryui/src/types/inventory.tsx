@@ -21,10 +21,7 @@ export interface ImportedMaterialItem {
         sku?: string;
         name?: string;
         measurement?: string;
-    };
-    sku?: string;
-    name?: string;
-    measurement?: string;
+    };    
     quantity: number;
     price: number;
 }

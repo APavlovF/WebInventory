@@ -4,7 +4,7 @@ import type { ChangeEvent } from 'react';
 import { isDemoMode } from '../../api';
 import { useI18n } from '../../i18n/useI18n';
 import { c, alpha } from '../../theme/themes';
-import type { BuyRow, Unit } from '../../types/inventory';
+import type { BuyRow, Product, Unit } from '../../types/inventory';
 import { useMaterialImport } from '../shared/useMaterialImport';
 import {
     overlayStyle,
@@ -12,6 +12,7 @@ import {
     submitBtnStyle,
     cancelBtnStyle,
 } from '../shared/ModalStyles';
+import { useSseImport } from '../shared/useSseImport';
 
 export type AiImportType = 'invoice' | 'materials' | 'products';
 
@@ -20,12 +21,13 @@ interface AiParserModalProps {
     units: Unit[];
     onClose: () => void;
     onMaterialsImported: (rows: BuyRow[], type: 'invoice' | 'materials') => void;
-    onSelectProducts?: () => void;
+    onProductsImported: (products: Product[]) => void;
 }
 
-const ENDPOINTS: Record<'invoice' | 'materials', string> = {
+const ENDPOINTS: Record<AiImportType, string> = {
     invoice: '/api/invoice/parse',
-    materials: '/api/import/materials', 
+    materials: '/api/import/materials',
+    products: '/api/import/products',
 };
 
 export default function AiParserModal({
@@ -33,29 +35,50 @@ export default function AiParserModal({
     units,
     onClose,
     onMaterialsImported,
-    onSelectProducts,
+    onProductsImported,
 }: AiParserModalProps) {
     const { t } = useI18n();
     const fileInputRef = useRef<HTMLInputElement | null>(null);
-    const pendingTypeRef = useRef<'invoice' | 'materials'>('invoice');
-    const [error, setError] = useState<string | null>(null);
-    const [notice, setNotice] = useState<string | null>(null);
+    const pendingTypeRef = useRef<AiImportType>('invoice');
 
-    const { isImporting, importStatus, runImport, cancelImport } = useMaterialImport({
+    const materialImport = useMaterialImport({
         units,
         onSuccess: (rows) => {
             setError(null);
             setNotice(null);
-            onMaterialsImported(rows, pendingTypeRef.current);
+            if (pendingTypeRef.current !== 'products') {
+                onMaterialsImported(rows, pendingTypeRef.current);
+            }
             onClose();
         },
         onError: (msg) => setError(msg),
         onNotice: (msg) => setNotice(msg),
     });
 
+    const productImport = useSseImport<Product[]>({
+        onSuccess: (products) => {
+            setError(null);
+            setNotice(null);
+            onProductsImported(products);
+            onClose();
+        },
+        onError: (msg) => setError(msg),
+        onNotice: (msg) => setNotice(msg),
+    });
+
+    const isImporting = materialImport.isImporting || productImport.isImporting;
+    const importStatus = productImport.isImporting ? productImport.importStatus : materialImport.importStatus;
+    const cancelImport = () => {
+        materialImport.cancelImport();
+        productImport.cancelImport();
+    };
+
+    const [error, setError] = useState<string | null>(null);
+    const [notice, setNotice] = useState<string | null>(null);
+
     if (!isOpen) return null;
 
-    const handleTriggerFile = (type: 'invoice' | 'materials') => {
+    const handleTriggerFile = (type: AiImportType) => {
         if (isDemoMode()) {
             setNotice(t('buy.importDemoDisabled'));
             return;
@@ -73,11 +96,13 @@ export default function AiParserModal({
 
         const formData = new FormData();
         formData.append('file', file);
+        const endpoint = ENDPOINTS[pendingTypeRef.current];
 
-        await runImport(ENDPOINTS[pendingTypeRef.current], {
-            method: 'POST',
-            body: formData,
-        });
+        if (pendingTypeRef.current === 'products') {
+            await productImport.runSseImport(endpoint, { method: 'POST', body: formData });
+        } else {
+            await materialImport.runImport(endpoint, { method: 'POST', body: formData });
+        }
     };
 
     const handleClose = () => {
@@ -101,7 +126,7 @@ export default function AiParserModal({
                 <input
                     ref={fileInputRef}
                     type="file"
-                    accept=".pdf,.xlsx,.xls,.csv,.txt"
+                    //accept=".pdf,.xlsx,.xls,.csv,.txt"
                     onChange={handleFileChange}
                     style={{ display: 'none' }}
                 />
@@ -182,10 +207,7 @@ export default function AiParserModal({
                     <button
                         type="button"
                         disabled={isImporting}
-                        onClick={() => {
-                            handleClose();
-                            onSelectProducts?.();
-                        }}
+                        onClick={() => handleTriggerFile('products')}
                         style={{
                             ...submitBtnStyle,
                             width: '100%',

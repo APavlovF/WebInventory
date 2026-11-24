@@ -1,11 +1,13 @@
 // src/i18n/ru.ts  - Русский
 import type { TKey } from './en';
 
-export const ru: Record<TKey, string> = {
+export const ru: Record<TKey, string> = {    
     'addType.addCommission': '+ Добавить комиссию',
+    'addType.addTab': '+ Добавить товар',
     'addType.commissionName': 'Название комиссии',
     'addType.commissions': 'Комиссии и налоги (необязательно)',
     'addType.duplicateCommission': 'Повторяющееся название комиссии',
+    'addType.duplicateTab': 'Дублирующееся название или артикул товара в другой вкладке',
     'addType.editProduct': 'Выберите тип товара для редактирования...',
     'addType.errFailed': 'Не удалось сохранить продукт ({status})',
     'addType.errSaving': 'Ошибка при сохранении продукта в базе данных.',
@@ -16,15 +18,18 @@ export const ru: Record<TKey, string> = {
     'addType.missingPricing': 'У этого товара не сохранены наценка, стоимость работы и комиссии, поэтому эти поля начинаются с 0, а цена будет пересчитана.',
     'addType.nameTaken': 'Товап с таким названием уже существует',
     'addType.newCommission': 'Будет сохранена новая комиссия "{name}"',
+    'addType.newTab': 'Товар',
     'addType.placeholderName': 'напр., Деревянный стул',
     'addType.placeholderSku': 'напр., CHAIR-OAK-001',
     'addType.productName': 'Название товара',
     'addType.qty': 'Кол-во',
     'addType.removeCommission': 'Убрать комиссию',
+    'addType.removeTab': 'Закрыть вкладку',
     'addType.retailPrice': 'Розничная цена:',
     'addType.retailRate': 'Розничная наценка (%)',
     'addType.save': 'Сохранить тип продукта',
     'addType.saveChanges': 'Сохранить изменения',
+    'addType.saveMultiple': 'Сохранить типы товаров ({count})',
     'addType.selectMaterial': '-- Выберите материал --',
     'addType.title': 'Добавить товар',
     'addType.titleEdit': 'Редактировать тип товара',

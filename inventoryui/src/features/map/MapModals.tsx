@@ -6,14 +6,14 @@ import SellProductsModal from '../market/SellProductsModal';
 import MaterialLimitsModal from '../warehouse/MaterialLimitsModal';
 import RemoveMaterialModal from '../office/RemoveMaterialModal';
 import RemoveProductModal from '../office/RemoveProductModal';
-import type { BuyRow } from '../../types/inventory';
+import type { BuyRow, Product } from '../../types/inventory';
 
 export type ActiveMapModal =
     | 'addProduct'
     | 'produceBatch'
     | 'buyMaterials'
     | 'sellProducts'
-    | 'materialLimits'    
+    | 'materialLimits'
     | 'removeMaterial'
     | 'removeProduct'
     | null;
@@ -22,11 +22,12 @@ interface MapModalsProps {
     activeModal: ActiveMapModal;
     autoImport: boolean;
     initialRows?: BuyRow[];
+    initialProducts?: Product[];
     maxStock: number;
     onClose: () => void;
 }
 
-export default function MapModals({ activeModal, autoImport, maxStock, onClose }: MapModalsProps) {
+export default function MapModals({ activeModal, autoImport, initialRows, initialProducts, maxStock, onClose }: MapModalsProps) {
     const { products, productStocks, unitStocks, units, commissions, refresh } = useInventoryStore();
 
     return (
@@ -34,6 +35,7 @@ export default function MapModals({ activeModal, autoImport, maxStock, onClose }
             {/* Workshop forms */}
             <AddProductTypeModal
                 isOpen={activeModal === 'addProduct'}
+                initialProducts={initialProducts}
                 materials={units}
                 materialStocks={unitStocks}
                 availableCommissions={commissions}
@@ -58,6 +60,7 @@ export default function MapModals({ activeModal, autoImport, maxStock, onClose }
             <BuyMaterialsModal
                 isOpen={activeModal === 'buyMaterials'}
                 autoOpenImport={autoImport}
+                initialRows={initialRows}
                 units={units}
                 materialStocks={unitStocks}
                 maxStock={1000}
@@ -80,7 +83,7 @@ export default function MapModals({ activeModal, autoImport, maxStock, onClose }
                 unitStocks={unitStocks}
                 onClose={onClose}
                 onSuccess={refresh}
-            />            
+            />
 
             {/* Office forms */}
             <RemoveMaterialModal

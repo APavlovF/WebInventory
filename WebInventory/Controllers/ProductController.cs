@@ -22,77 +22,149 @@ public class ProductController(EfDbContext context) : ControllerBase
         await ProcessBatchAsync(products, saveProducts: true);
 
     [Authorize]
-    [HttpPost("add")]
-    public async Task<IActionResult> CreateProduct([FromBody] Product product)
+    [HttpPost("save")]
+    public async Task<IActionResult> CreateProduct([FromBody] List<Product> products)
     {
-        if (product == null)
+        if (products == null || products.Count == 0)
         {
             return BadRequest("Product data is required.");
         }
 
         int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        string normalizedName = product.GetUniqueKey();
+        // 1. Validate and load all referenced Units in a single query
+        HashSet<int> unitIds = products
+            .SelectMany(p => p.Items ?? Enumerable.Empty<Item>())
+            .Select(i => i.Unit.Id)
+            .ToHashSet();
 
-        // Resolve units first so validation fails early if any unit is invalid
-        foreach (Item item in product.Items)
+        Dictionary<int, Unit> unitsById = await context.Units
+            .Where(u => unitIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id);
+
+        foreach (Product product in products)
         {
-            Unit existingUnit = await context.Units.SingleOrDefaultAsync(u => u.Id == item.Unit.Id);
-            if (existingUnit == null)
+            foreach (Item item in product.Items)
             {
-                return BadRequest($"Unit {item.Unit.Id} does not exist.");
-            }
+                if (!unitsById.TryGetValue(item.Unit.Id, out Unit existingUnit))
+                {
+                    return BadRequest($"Unit {item.Unit.Id} does not exist.");
+                }
 
-            item.Unit = existingUnit;
+                item.Unit = existingUnit;
+            }
         }
 
-        List<Commission> resolvedCommissions = await ResolveCommissions(product.Commissions, userId);
-        // Check if product already exists for this user (match by Name, or add Sku check if needed)
-        Product existingProduct = await context.Products
+        // 2. Load all existing products for this user to check edits, duplicates, and soft-deletes
+        List<Product> userProducts = await context.Products
             .Include(p => p.Items)
             .Include(p => p.Commissions)
             .Where(p => p.UserId == userId)
-            .Where(Product.MatchesUniqueKeyOf(product))
-            .FirstOrDefaultAsync();
+            .ToListAsync();
 
-        product.TrimKeyProperties();
-        if (existingProduct != null)
+        Dictionary<int, Product> existingById = userProducts.ToDictionary(p => p.Id);
+        Dictionary<string, Product> existingByKey = userProducts
+            .ToDictionary(p => p.GetUniqueKey());
+        HashSet<string> batchKeys = [];
+        List<Product> savedProducts = new List<Product>(products.Count);
+        foreach (Product product in products)
         {
-            if (!existingProduct.IsDeleted)
+            product.TrimKeyProperties();
+            string normalizedKey = product.GetUniqueKey();
+            if (!batchKeys.Add(normalizedKey))
             {
-                return Conflict($"Product '{normalizedName}' already exists.");
+                return BadRequest($"Duplicate product '{normalizedKey}' in request.");
             }
 
-            // Restore and update the soft-deleted product
-            existingProduct.IsDeleted = false;
-            existingProduct.Name = product.Name;
-            existingProduct.Sku = product.Sku;
-            existingProduct.Price = product.Price;
-            existingProduct.RetailRate = product.RetailRate;
-
-            existingProduct.Items.Clear();
-            foreach (Item item in product.Items)
+            List<Commission> resolvedCommissions = await ResolveCommissions(product.Commissions, userId);
+            // Case A: Updating an existing product (Id > 0)
+            if (product.Id > 0)
             {
-                existingProduct.Items.Add(item);
+                if (!existingById.TryGetValue(product.Id, out Product targetProduct) || targetProduct.IsDeleted)
+                {
+                    return NotFound($"Product with Id {product.Id} does not exist.");
+                }
+
+                // Ensure the new Name/SKU doesn't collide with a different active product
+                if (existingByKey.TryGetValue(normalizedKey, out Product keyOwner)
+                    && keyOwner.Id != targetProduct.Id
+                    && !keyOwner.IsDeleted)
+                {
+                    return Conflict($"Product '{normalizedKey}' already exists.");
+                }
+
+                // Update key lookup map in case this product's key changed
+                existingByKey.Remove(targetProduct.GetUniqueKey());
+
+                targetProduct.Name = product.Name;
+                targetProduct.Sku = product.Sku;
+                targetProduct.Markup = product.Markup;
+                targetProduct.WorkCost = product.WorkCost;
+                targetProduct.Price = product.Price;
+                targetProduct.RetailRate = product.RetailRate;
+
+                targetProduct.Items.Clear();
+                foreach (Item item in product.Items)
+                {
+                    targetProduct.Items.Add(item);
+                }
+
+                targetProduct.Commissions.Clear();
+                foreach (Commission commission in resolvedCommissions)
+                {
+                    targetProduct.Commissions.Add(commission);
+                }
+
+                existingByKey[normalizedKey] = targetProduct;
+                savedProducts.Add(targetProduct);
+                continue;
             }
 
-            existingProduct.Commissions.Clear();
-            foreach (Commission commission in resolvedCommissions)
+            // Case B: Creating a new product (Id == 0) — check for active conflict or soft-deleted match
+            if (existingByKey.TryGetValue(normalizedKey, out Product existingProduct))
             {
-                existingProduct.Commissions.Add(commission);
+                if (!existingProduct.IsDeleted)
+                {
+                    return Conflict($"Product '{normalizedKey}' already exists.");
+                }
+
+                // Restore and update the soft-deleted product
+                existingProduct.IsDeleted = false;
+                existingProduct.Name = product.Name;
+                existingProduct.Sku = product.Sku;
+                existingProduct.Markup = product.Markup;
+                existingProduct.WorkCost = product.WorkCost;
+                existingProduct.Price = product.Price;
+                existingProduct.RetailRate = product.RetailRate;
+
+                existingProduct.Items.Clear();
+                foreach (Item item in product.Items)
+                {
+                    existingProduct.Items.Add(item);
+                }
+
+                existingProduct.Commissions.Clear();
+                foreach (Commission commission in resolvedCommissions)
+                {
+                    existingProduct.Commissions.Add(commission);
+                }
+
+                savedProducts.Add(existingProduct);
+                continue;
             }
 
-            await context.SaveChangesAsync();
-            return Ok(existingProduct);
+            // Case C: Brand-new product
+            product.UserId = userId;
+            product.IsDeleted = false;
+            product.Commissions = resolvedCommissions;
+
+            context.Products.Add(product);
+            existingByKey[normalizedKey] = product;
+            savedProducts.Add(product);
         }
 
-        product.UserId = userId;
-        product.IsDeleted = false;
-        product.Commissions = resolvedCommissions;
-
-        context.Products.Add(product);
         await context.SaveChangesAsync();
 
-        return CreatedAtAction(nameof(CreateProduct), new { id = product.Id }, product);
+        return Ok(savedProducts);
     }
 
     [Authorize]

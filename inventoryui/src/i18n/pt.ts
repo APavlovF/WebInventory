@@ -1,11 +1,13 @@
 // src/i18n/pt.ts  - Português (Brasil)
 import type { TKey } from './en';
 
-export const pt: Record<TKey, string> = {    
+export const pt: Record<TKey, string> = {        
     'addType.addCommission': '+ Adicionar comissão',
+    'addType.addTab': '+ Adicionar novo Produto',
     'addType.commissionName': 'Nome da comissão',
     'addType.commissions': 'Comissões e impostos (opcional)',
     'addType.duplicateCommission': 'Nome de comissão duplicado',
+    'addType.duplicateTab': 'Nome ou SKU do produto duplicado em outra aba',
     'addType.editProduct': 'Editar produto',
     'addType.errFailed': 'Falha ao salvar o produto ({status})',
     'addType.errSaving': 'Erro ao salvar o produto no banco de dados.',
@@ -16,15 +18,18 @@ export const pt: Record<TKey, string> = {
     'addType.missingPricing': 'Este produto não tem margem, custo de mão de obra ou comissões salvos; esses campos começam em 0 e o preço será recalculado.',
     'addType.nameTaken': 'Já existe um produto com este nome',
     'addType.newCommission': 'A nova comissão "{name}" será salva',
+    'addType.newTab': 'Produto',
     'addType.placeholderName': 'ex.: Cadeira de madeira',
     'addType.placeholderSku': 'ex.: CHAIR-OAK-001',
     'addType.productName': 'Nome do produto',
     'addType.qty': 'Qtd.',
     'addType.removeCommission': 'Remover comissão',
+    'addType.removeTab': 'Remover aba',
     'addType.retailPrice': 'Preço de varejo:',
     'addType.retailRate': 'Taxa de varejo (%)',
     'addType.save': 'Salvar tipo de produto',
     'addType.saveChanges': 'Salvar alterações',
+    'addType.saveMultiple': 'Salvar {count} Tipos de Produto',
     'addType.selectMaterial': '-- Selecione o material --',
     'addType.title': 'Adicionar tipo de produto',
     'addType.titleEdit': 'Editar tipo de produto',
