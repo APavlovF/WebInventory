@@ -4,17 +4,17 @@ using Microsoft.Extensions.Options;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using WebInventory.DataAi;
 using WebInventory.Services;
 
 namespace WebInventory.InvoiceAi;
 
-public class InvoiceParser(Client geminiClient, IOptions<InvoiceParserOptions> options)
+public class InvoiceParser(Client geminiClient, IOptions<InvoiceParserOptions> options) : IAiParser
 {
-    public async Task<List<ParsedInvoiceItemDto>> ParseInvoice(string ext,
-        byte[] fileBytes,
-        CancellationToken cancellationToken, Func<string, object, Task> sendEventAsync)
+    public async Task<List<T>> ParseDocument<T>(string ext, byte[] fileBytes, CancellationToken cancellationToken, 
+        Func<string, object, CancellationToken, Task> sendEventAsync)
     {
-        await sendEventAsync("status", new { message = "Uploading invoice..." });
+        await sendEventAsync("status", new { message = "Uploading invoice..." }, cancellationToken);
         List<Part> parts =
         [
             Part.FromText(options.Value.Prompt),
@@ -32,7 +32,7 @@ public class InvoiceParser(Client geminiClient, IOptions<InvoiceParserOptions> o
             for (int attempt = 1; attempt <= 2; attempt++)
             {
                 await sendEventAsync("status",
-                    new { message = $"Attempt {attempt}: extracting document contents with {modelName}..." });
+                    new { message = $"Attempt {attempt}: extracting document contents with {modelName}..." }, cancellationToken);
                 try
                 {
                     response = await geminiClient.Models.GenerateContentAsync(
@@ -55,7 +55,7 @@ public class InvoiceParser(Client geminiClient, IOptions<InvoiceParserOptions> o
         if (response == null)
         {
             await sendEventAsync("status",
-                new { message = "AI service is temporarily busy. Please try again shortly." });
+                new { message = "AI service is temporarily busy. Please try again shortly." }, cancellationToken);
             return [];
         }
 
@@ -66,14 +66,14 @@ public class InvoiceParser(Client geminiClient, IOptions<InvoiceParserOptions> o
             { PropertyNameCaseInsensitive = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull }
         );
 
-        await sendEventAsync("status", new { message = "Finalizing items..." });
+        await sendEventAsync("status", new { message = "Finalizing items..." }, cancellationToken);
 
-        return InvoiceHelper.GetGroupedItems(extracted);
+        return InvoiceHelper.GetGroupedItems(extracted).Cast<T>().ToList();
 
         async Task<Part> GetTextPart()
         {
             if (ext != ".pdf") return Part.FromText(Encoding.UTF8.GetString(fileBytes));
-            await sendEventAsync("status", new { message = "Extracting text from PDF..." });
+            await sendEventAsync("status", new { message = "Extracting text from PDF..." }, cancellationToken);
             string extractedText = PdfService.ExtractText(fileBytes);
             if (extractedText.Length >= 30)
             {
@@ -81,7 +81,7 @@ public class InvoiceParser(Client geminiClient, IOptions<InvoiceParserOptions> o
             }
 
             // Fallback for scanned/image-only PDFs
-            await sendEventAsync("status", new { message = "Scanned PDF detected, running AI vision..." });
+            await sendEventAsync("status", new { message = "Scanned PDF detected, running AI vision..." }, cancellationToken);
             return Part.FromBytes(fileBytes, "application/pdf");
 
         }

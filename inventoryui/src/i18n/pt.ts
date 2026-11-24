@@ -47,6 +47,8 @@ export const pt: Record<TKey, string> = {
     'advisor.guest': 'Entre para gerenciar nossa produção, milorde!',
     'advisor.version': 'Versão {version}',    
     'aiParser.freeTierNotice': 'Utiliza uma camada gratuita de IA — a alta demanda pode causar tempo limite excedido ou impedir o processamento do arquivo.',
+    'aiParser.importingMaterials': 'Importando materiais...',
+    'aiParser.importingProducts': 'Importando produtos...',
     'aiParser.importInvoice': 'Importar fatura',
     'aiParser.importMaterials': 'Importar materiais',
     'aiParser.importProducts': 'Importar produtos',

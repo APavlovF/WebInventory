@@ -47,6 +47,8 @@ export const es: Record<TKey, string> = {
     'advisor.guest': '¡Inicie sesión para gestionar nuestra producción, mi señor!',
     'advisor.version': 'Versión {version}',  
     'aiParser.freeTierNotice': 'Funciona con un nivel gratuito de IA — la alta demanda puede causar tiempos de espera agotados o impedir el procesamiento del archivo.',
+    'aiParser.importingMaterials': 'Importando materiales...',
+    'aiParser.importingProducts': 'Importando productos...',
     'aiParser.importInvoice': 'Importar factura',
     'aiParser.importMaterials': 'Importar materiales',
     'aiParser.importProducts': 'Importar productos',

@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { isDemoMode } from '../../api';
 import { useI18n } from '../../i18n/useI18n';
+import type { TKey } from '../../i18n/en';
 import { c, alpha } from '../../theme/themes';
 import type { BuyRow, Product, Unit } from '../../types/inventory';
 import { useMaterialImport } from '../shared/useMaterialImport';
@@ -41,6 +42,12 @@ export default function AiParserModal({
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const pendingTypeRef = useRef<AiImportType>('invoice');
 
+    const IMPORTING_TITLE_KEY: Record<AiImportType, TKey> = {
+        invoice: 'buy.importing',
+        materials: 'aiParser.importingMaterials',
+        products: 'aiParser.importingProducts',
+    };
+
     const materialImport = useMaterialImport({
         units,
         onSuccess: (rows) => {
@@ -75,6 +82,7 @@ export default function AiParserModal({
 
     const [error, setError] = useState<string | null>(null);
     const [notice, setNotice] = useState<string | null>(null);
+    const [activeImportType, setActiveImportType] = useState<AiImportType>('invoice');
 
     if (!isOpen) return null;
 
@@ -86,7 +94,11 @@ export default function AiParserModal({
         setError(null);
         setNotice(null);
         pendingTypeRef.current = type;
-        fileInputRef.current?.click();
+        setActiveImportType(type);
+
+        setTimeout(() => {
+            fileInputRef.current?.click();
+        }, 0);
     };
 
     const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -267,7 +279,7 @@ export default function AiParserModal({
                         />
 
                         <h4 style={{ margin: '0 0 10px', color: c.accentBright, fontSize: '16px' }}>
-                            {t('buy.importing')}
+                            {t(IMPORTING_TITLE_KEY[activeImportType])}
                         </h4>
 
                         <div

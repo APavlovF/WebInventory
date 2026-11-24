@@ -46,6 +46,8 @@ export const en = {
     'advisor.guest': 'Sign in to manage our production, milord!',
     'advisor.version': 'Version {version}',
     'aiParser.freeTierNotice': 'Powered by a free AI tier — high demand may cause timeouts or prevent file processing.',   
+    'aiParser.importingMaterials': 'Importing materials...',
+    'aiParser.importingProducts': 'Importing products...',
     'aiParser.importInvoice': 'Import invoice',
     'aiParser.importMaterials': 'Import materials',
     'aiParser.importProducts': 'Import products',

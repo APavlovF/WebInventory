@@ -47,6 +47,8 @@ export const ru: Record<TKey, string> = {
     'advisor.guest': 'Войдите, чтобы вести учёт производства, милорд!',
     'advisor.version': 'Версия {version}',    
     'aiParser.freeTierNotice': 'Используется бесплатный тариф ИИ — высокая нагрузка может вызывать таймауты или препятствовать обработке файла.',
+    'aiParser.importingMaterials': 'Импорт материалов...',
+    'aiParser.importingProducts': 'Импорт товаров...',
     'aiParser.importInvoice': 'Импортировать счёт/накладную',
     'aiParser.importMaterials': 'Импортировать материалы',
     'aiParser.importProducts': 'Импортировать товары',
