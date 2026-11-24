@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using QuestPDF.Infrastructure;
 using System.Text;
 using WebInventory.Data;
+using WebInventory.DataAi;
 using WebInventory.InvoiceAi;
 using WebInventory.Services;
 
@@ -14,11 +15,15 @@ QuestPDF.Settings.License = LicenseType.Community;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.Configure<InvoiceParserOptions>(builder.Configuration.GetSection(InvoiceParserOptions.SectionName));
+builder.Services.Configure<MaterialsParserOptions>(builder.Configuration.GetSection(MaterialsParserOptions.SectionName));
+builder.Services.Configure<ProductsParserOptions>(builder.Configuration.GetSection(ProductsParserOptions.SectionName));
 
 builder.Services.AddSingleton(new Client(apiKey: builder.Configuration["GEMINI_API_KEY"]));
 builder.Services.AddTransient<InvoiceParser>();
 builder.Services.AddSingleton<JwtService>();
+builder.Services.AddTransient<MaterialsParser>();
 builder.Services.AddSingleton<PasswordService>();
+builder.Services.AddTransient<ProductsParser>();
 
 builder.Services.AddScoped<IFileWriter, CsvWriter>();
 builder.Services.AddScoped<IFileWriterFactory, FileWriterFactory>();

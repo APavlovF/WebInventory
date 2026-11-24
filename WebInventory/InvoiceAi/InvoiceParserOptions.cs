@@ -1,9 +1,8 @@
-﻿namespace WebInventory.InvoiceAi;
+﻿using WebInventory.Services;
 
-public class InvoiceParserOptions
+namespace WebInventory.InvoiceAi;
+
+public class InvoiceParserOptions : ParserOptions, IParserOptions
 {
-    public const string SectionName = "InvoiceParser";
-
-    public string[] CandidateModels { get; set; } = [];
-    public string Prompt { get; set; } = string.Empty;
+    public static string SectionName => "InvoiceParser";
 }

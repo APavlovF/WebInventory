@@ -19,6 +19,7 @@ import type { Unit, UnitStock } from '../../types/inventory';
 import '../shared/modalForm.css';
 import { c, alpha } from '../../theme/themes';
 import { useI18n } from '../../i18n/useI18n';
+import { getUnitKey } from '../shared/uniqueKey';
 
 interface BuyMaterialsModalProps {
     isOpen: boolean;
@@ -53,24 +54,7 @@ interface ParsedInvoiceItem {
     price: number;
 }
 
-export interface UnitKeyFields {
-    sku?: string | null;
-    name?: string | null;
-    measurement?: string | null;
-}
-
 const norm = (s?: string | null) => (s ?? '').trim().toLowerCase();
-
-// Matches C# Unit.GetUniqueKey(): Sku if non-empty, otherwise Name|Measurement
-export function getUnitKey(item: UnitKeyFields): string {
-    const sku = norm(item.sku);
-    if (sku) return sku;
-
-    const name = norm(item.name);
-    if (!name) return '';
-
-    return `${name}|${norm(item.measurement)}`;
-}
 
 const newRow = (): BuyRow => ({
     rowId: crypto.randomUUID(),
@@ -267,7 +251,7 @@ export default function BuyMaterialsModal({
 
                 if (field === 'name') {
                     const nameNorm = norm(value);
-                    const exactMatch = unitByKey.get(`${nameNorm}|${norm(r.measurement)}`);
+                    const exactMatch = unitByKey.get(getUnitKey({ name: value, measurement: r.measurement }));
                     const nameMatches = unitsByName.get(nameNorm);
                     const matchedUnit = exactMatch ?? (nameMatches?.length === 1 ? nameMatches[0] : undefined);
 
@@ -294,8 +278,7 @@ export default function BuyMaterialsModal({
                 }
 
                 if (field === 'measurement') {
-                    const nameNorm = norm(r.name);
-                    const matchedUnit = unitByKey.get(`${nameNorm}|${norm(value)}`);
+                    const matchedUnit = unitByKey.get(getUnitKey({ name: r.name, measurement: value }));
 
                     if (matchedUnit) {
                         const existingPrice = priceByUnitId.get(matchedUnit.id);
