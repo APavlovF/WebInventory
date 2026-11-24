@@ -14,7 +14,8 @@ import {
 import { useInventoryStore } from '../../data/InventoryContext';
 import { c } from '../../theme/themes';
 import WarehouseSemaphore from '../warehouse/WarehouseSemaphore';
-import AiParserModal, { type AiImportType } from './AiParserModal';
+import AiParserModal from './AiParserModal';
+import type { BuyRow } from '../../types/inventory';
 
 const MAX_STOCK = 10000;
 
@@ -26,18 +27,9 @@ export default function MapCanvas({ onBuildingClick }: MapCanvasProps) {
     const [dimensions, setDimensions] = useState<MapDimensions>({ width: 1200, height: 800 });
     const [autoImport, setAutoImport] = useState(false);
     const [activeModal, setActiveModal] = useState<ActiveMapModal>(null);
-    const { productStocks, unitStocks, products } = useInventoryStore();
+    const { productStocks, unitStocks, products, units } = useInventoryStore();
     const [showAiParserModal, setShowAiParserModal] = useState(false);
-
-    const handleAiImportAction = (type: AiImportType) => {
-        setShowAiParserModal(false);
-        setAutoImport(true);
-        if (type === 'invoice' || type === 'materials') {
-            setActiveModal('buyMaterials');
-        } else if (type === 'products') {
-            setActiveModal('addProduct');
-        }
-    };
+    const [importedRows, setImportedRows] = useState<BuyRow[] | undefined>();
 
     useEffect(() => {
         const handleResize = () => {
@@ -68,6 +60,19 @@ export default function MapCanvas({ onBuildingClick }: MapCanvasProps) {
         }),
         [dimensions]
     );
+
+    const handleMaterialsImported = (rows: BuyRow[]) => {
+        setImportedRows(rows);
+        setAutoImport(false);
+        setShowAiParserModal(false);
+        setActiveModal('buyMaterials');
+    };
+
+    const handleCloseModal = () => {
+        setActiveModal(null);
+        setAutoImport(false);
+        setImportedRows(undefined);
+    };
 
     return (
         <div
@@ -113,11 +118,7 @@ export default function MapCanvas({ onBuildingClick }: MapCanvasProps) {
                 top={`${landmarks.office.y - 75}px`}
                 left={`${landmarks.office.x - 65}px`}
                 imgSrc="map-office.png"
-                //onClick={() => setShowAiParserModal(true)}
-                onImportInvoice={() => {
-                    setAutoImport(true);
-                    setActiveModal('buyMaterials');
-                }}
+                onClick={() => setShowAiParserModal(true)}                
                 onRemoveMaterial={() => setActiveModal('removeMaterial')}
                 onRemoveProduct={() => setActiveModal('removeProduct')}
             />
@@ -137,6 +138,7 @@ export default function MapCanvas({ onBuildingClick }: MapCanvasProps) {
                 imgSrc="map-market.png"
                 onClick={() => onBuildingClick('Market')}
                 onBuyMaterials={() => {
+                    setImportedRows(undefined);
                     setAutoImport(false);
                     setActiveModal('buyMaterials');
                 }}
@@ -146,14 +148,21 @@ export default function MapCanvas({ onBuildingClick }: MapCanvasProps) {
             <MapModals
                 activeModal={activeModal}
                 autoImport={autoImport}
+                initialRows={importedRows}
                 maxStock={MAX_STOCK}
-                onClose={() => setActiveModal(null)}
+                onClose={handleCloseModal}
             />
 
             <AiParserModal
                 isOpen={showAiParserModal}
+                units={units}
                 onClose={() => setShowAiParserModal(false)}
-                onSelectAction={handleAiImportAction}
+                onMaterialsImported={handleMaterialsImported}
+                onSelectProducts={() => {
+                    setShowAiParserModal(false);
+                    setAutoImport(true);
+                    setActiveModal('addProduct');
+                }}
             />
         </div>
     );

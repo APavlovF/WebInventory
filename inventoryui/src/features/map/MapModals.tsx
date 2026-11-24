@@ -6,6 +6,7 @@ import SellProductsModal from '../market/SellProductsModal';
 import MaterialLimitsModal from '../warehouse/MaterialLimitsModal';
 import RemoveMaterialModal from '../office/RemoveMaterialModal';
 import RemoveProductModal from '../office/RemoveProductModal';
+import type { BuyRow } from '../../types/inventory';
 
 export type ActiveMapModal =
     | 'addProduct'
@@ -20,6 +21,7 @@ export type ActiveMapModal =
 interface MapModalsProps {
     activeModal: ActiveMapModal;
     autoImport: boolean;
+    initialRows?: BuyRow[];
     maxStock: number;
     onClose: () => void;
 }

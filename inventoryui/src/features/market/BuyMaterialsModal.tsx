@@ -15,43 +15,22 @@ import {
     cancelBtnStyle,
     submitBtnStyle,
 } from '../shared/ModalStyles';
-import type { Unit, UnitStock } from '../../types/inventory';
+import type { BuyRow, Unit, UnitStock } from '../../types/inventory';
 import '../shared/modalForm.css';
 import { c, alpha } from '../../theme/themes';
 import { useI18n } from '../../i18n/useI18n';
 import { getUnitKey } from '../shared/uniqueKey';
+import { useMaterialImport } from '../shared/useMaterialImport';
 
 interface BuyMaterialsModalProps {
     isOpen: boolean;
     autoOpenImport?: boolean;
+    initialRows?: BuyRow[];
     units: Unit[];               // Known materials (offered as suggestions in the combobox)
     materialStocks: UnitStock[]; // Current stock per material
     maxStock: number;            // Max stock limit, applied per material
     onClose: () => void;
     onSuccess: () => void;       // Called after saving (parent refreshes its data)
-}
-
-interface BuyRow {
-    rowId: string;
-    sku: string;         // unique key when provided
-    name: string;        // typed or picked from the combobox
-    quantity: string;
-    price: string;       // price per unit
-    measurement: string; // unit of measurement
-}
-
-// Expected shape returned by your C# invoice parser endpoint (matches List<UnitStock>)
-interface ParsedInvoiceItem {
-    unit?: {
-        sku?: string;
-        name?: string;
-        measurement?: string;
-    };
-    sku?: string;
-    name?: string;
-    measurement?: string;
-    quantity: number;
-    price: number;
 }
 
 const norm = (s?: string | null) => (s ?? '').trim().toLowerCase();
@@ -80,6 +59,7 @@ const gridRowLayout = {
 export default function BuyMaterialsModal({
     isOpen,
     autoOpenImport = false,
+    initialRows,
     units,
     materialStocks,
     maxStock,
@@ -87,14 +67,20 @@ export default function BuyMaterialsModal({
     onSuccess,
 }: BuyMaterialsModalProps) {
     const { t } = useI18n();
-    const [rows, setRows] = useState<BuyRow[]>([newRow()]);
+    const [rows, setRows] = useState<BuyRow[]>(() =>
+        initialRows && initialRows.length > 0 ? initialRows : [newRow()]
+    );
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isImporting, setIsImporting] = useState(false);
-    const [importStatus, setImportStatus] = useState<string>(t('buy.preparing'));
     const [apiError, setApiError] = useState<string | null>(null);
     const [notice, setNotice] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
-    const abortControllerRef = useRef<AbortController | null>(null);
+
+    const { isImporting, importStatus, runImport, cancelImport } = useMaterialImport({
+        units,
+        onSuccess: (importedRows) => setRows(importedRows),
+        onError: (msg) => setApiError(msg),
+        onNotice: (msg) => setNotice(msg),
+    });
 
     // Invoice parsing runs on the server, which demo mode never talks to: explain instead of failing
     const openFilePicker = () => {
@@ -105,6 +91,13 @@ export default function BuyMaterialsModal({
         setNotice(null);
         fileInputRef.current?.click();
     };
+
+    useEffect(() => {
+        if (isOpen && initialRows && initialRows.length > 0) {
+            const timeoutId = window.setTimeout(() => setRows(initialRows), 0);
+            return () => window.clearTimeout(timeoutId);
+        }
+    }, [isOpen, initialRows]);
 
     useEffect(() => {
         if (isOpen && autoOpenImport) {
@@ -305,116 +298,20 @@ export default function BuyMaterialsModal({
             })
         );
 
-    const handleCancelImport = () => {
-        abortControllerRef.current?.abort();
-    };
-
     const handleInvoiceUpload = async (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         // Reset input value so selecting the same file again still triggers onChange
         e.target.value = '';
         if (!file) return;
 
-        const controller = new AbortController();
-        abortControllerRef.current = controller;
-
-        setIsImporting(true);
-        setImportStatus(t('buy.connecting'));
         setApiError(null);
+        const formData = new FormData();
+        formData.append('file', file);
 
-        try {
-            const formData = new FormData();
-            formData.append('file', file);
-
-            // Replace with your C# invoice parsing endpoint
-            const response = await apiFetch('/api/invoice/parse', {
-                method: 'POST',
-                body: formData,
-                signal: controller.signal,
-            });
-
-            if (response.status === 401) {
-                throw new Error(t('err.notAuthorized'));
-            }
-            if (!response.ok || !response.body) {
-                throw new Error(t('buy.errImport', { status: response.status }));
-            }
-
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let buffer = '';
-            let parsedItems: ParsedInvoiceItem[] | null = null;
-
-            while (true) {
-                const { value, done } = await reader.read();
-                if (done) break;
-
-                buffer += decoder.decode(value, { stream: true });
-
-                // SSE messages are separated by double newlines
-                const events = buffer.split('\n\n');
-                buffer = events.pop() ?? '';
-
-                for (const rawEvent of events) {
-                    let eventType = 'message';
-                    let dataStr = '';
-
-                    for (const line of rawEvent.split('\n')) {
-                        if (line.startsWith('event: ')) {
-                            eventType = line.slice(7).trim();
-                        } else if (line.startsWith('data: ')) {
-                            dataStr += line.slice(6);
-                        }
-                    }
-
-                    if (!dataStr) continue;
-                    const payload = JSON.parse(dataStr);
-
-                    if (eventType === 'status') {
-                        setImportStatus(payload.message);
-                    } else if (eventType === 'error') {
-                        throw new Error(payload.message);
-                    } else if (eventType === 'result') {
-                        parsedItems = payload;
-                    }
-                }
-            }
-
-            if (!Array.isArray(parsedItems) || parsedItems.length === 0) {
-                throw new Error(t('buy.errNoItems'));
-            }
-
-            const importedRows: BuyRow[] = parsedItems.map((item) => {
-                const rawSku = (item.unit?.sku ?? item.sku ?? '').trim();
-                const rawName = (item.unit?.name ?? item.name ?? '').trim();
-                const rawMeasurement = (item.unit?.measurement ?? item.measurement ?? '').trim();
-
-                const itemKey = getUnitKey({ sku: rawSku, name: rawName, measurement: rawMeasurement });
-                const matchedUnit =
-                    (itemKey ? unitByKey.get(itemKey) : undefined) ??
-                    (unitsByName.get(norm(rawName))?.length === 1 ? unitsByName.get(norm(rawName))![0] : undefined);
-
-                return {
-                    rowId: crypto.randomUUID(),
-                    sku: matchedUnit?.sku ?? rawSku,
-                    name: matchedUnit ? matchedUnit.name : rawName,
-                    quantity: String(item.quantity ?? 1),
-                    price: String(item.price ?? 0),
-                    measurement: matchedUnit ? matchedUnit.measurement : rawMeasurement,
-                };
-            });
-
-            setRows(importedRows);
-        } catch (err: unknown) {
-            if (err instanceof Error && err.name === 'AbortError') {
-                setApiError(t('buy.errCanceled'));
-            } else {
-                setApiError(err instanceof Error ? err.message : t('buy.errParsing'));
-            }
-        } finally {
-            abortControllerRef.current = null;
-            setIsImporting(false);
-        }
+        await runImport('/api/invoice/parse', {
+            method: 'POST',
+            body: formData,
+        });
     };
 
     const handleSubmit = async (e: SyntheticEvent) => {
@@ -778,7 +675,7 @@ export default function BuyMaterialsModal({
 
                             <button
                                 type="button"
-                                onClick={handleCancelImport}
+                                onClick={cancelImport}
                                 style={{
                                     ...cancelBtnStyle,
                                     borderColor: c.danger,
