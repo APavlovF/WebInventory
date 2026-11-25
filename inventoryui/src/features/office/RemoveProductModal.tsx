@@ -124,7 +124,7 @@ export default function RemoveProductModal({
                 {
                     method: 'POST',
                     body: JSON.stringify({
-                        productIds: rows.map(
+                        listIds: rows.map(
                             x => x.productId
                         ),
                     }),

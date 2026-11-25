@@ -121,7 +121,7 @@ export default function RemoveMaterialModal({
                 {
                     method: 'POST',
                     body: JSON.stringify({
-                        unitStockIds: rows.map(
+                        listIds: rows.map(
                             x => x.unitStockId
                         ),
                     }),

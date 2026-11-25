@@ -16,6 +16,7 @@ import {
     headerLabelStyle,
     cancelBtnStyle,
 } from '../shared/ModalStyles';
+import { useAdvisorMessage } from '../../components/useAdvisor';
 
 interface WarehouseSemaphoreProps {
     top: string;
@@ -151,6 +152,11 @@ export default function WarehouseSemaphore({
     };
 
     const activeStatus = statusConfig[status];
+
+    useAdvisorMessage(
+        status === 'green' ? null : `${activeStatus.label}: ${activeStatus.desc}`,
+        status === 'red' ? 'error' : 'warning'
+    );
 
     return (
         <>
