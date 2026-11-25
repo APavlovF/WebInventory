@@ -14,19 +14,23 @@ QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddTransient(typeof(GroqParser<>));
 builder.Services.Configure<InvoiceParserOptions>(builder.Configuration.GetSection(InvoiceParserOptions.SectionName));
 builder.Services.Configure<MaterialsParserOptions>(builder.Configuration.GetSection(MaterialsParserOptions.SectionName));
 builder.Services.Configure<ProductsParserOptions>(builder.Configuration.GetSection(ProductsParserOptions.SectionName));
 
 builder.Services.AddSingleton(new Client(apiKey: builder.Configuration["GEMINI_API_KEY"]));
-builder.Services.AddSingleton(_ => new OpenAIClient(apiKey: builder.Configuration["Groq:ApiKey"]));
-builder.Services.AddSingleton<IAiClient, GroqAiClient>();
+builder.Services.AddScoped(typeof(GeminiParser<>));
 
-builder.Services.AddTransient<InvoiceParser>();
+builder.Services.AddSingleton(_ => new OpenAIClient(apiKey: builder.Configuration["Groq:ApiKey"]));
+builder.Services.Configure<GroqOptions>(builder.Configuration.GetSection("Groq"));
+builder.Services.AddHttpClient<IAiClient, GroqAiClient>(client =>
+{
+    client.BaseAddress = new Uri("https://api.groq.com/openai/v1/");
+});
+
 builder.Services.AddSingleton<JwtService>();
-builder.Services.AddTransient<MaterialsParser>();
 builder.Services.AddSingleton<PasswordService>();
-builder.Services.AddTransient<ProductsParser>();
 
 builder.Services.AddScoped<IFileWriter, CsvWriter>();
 builder.Services.AddScoped<IFileWriterFactory, FileWriterFactory>();

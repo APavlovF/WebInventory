@@ -2,6 +2,6 @@
 
 public interface IAiParser
 {
-    Task<List<T>> ParseDocument<T>(string ext, byte[] fileBytes, CancellationToken cancellationToken,
+    Task<T> ParseDocument<T>(string ext, byte[] fileBytes, CancellationToken cancellationToken,
         Func<string, object, CancellationToken, Task> sendEventAsync);
 }

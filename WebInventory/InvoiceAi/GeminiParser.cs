@@ -9,12 +9,12 @@ using WebInventory.Services;
 
 namespace WebInventory.InvoiceAi;
 
-public class InvoiceParser(Client geminiClient, IOptions<InvoiceParserOptions> options) : IAiParser
+public class GeminiParser<TOpt>(Client geminiClient, IOptions<TOpt> options) : IAiParser where TOpt : ParserOptions
 {
-    public async Task<List<T>> ParseDocument<T>(string ext, byte[] fileBytes, CancellationToken cancellationToken, 
+    public async Task<T> ParseDocument<T>(string ext, byte[] fileBytes, CancellationToken cancellationToken,
         Func<string, object, CancellationToken, Task> sendEventAsync)
     {
-        await sendEventAsync("status", new { message = "Uploading invoice..." }, cancellationToken);
+        await sendEventAsync("status", new { message = "Uploading document..." }, cancellationToken);
         List<Part> parts =
         [
             Part.FromText(options.Value.Prompt),
@@ -56,19 +56,17 @@ public class InvoiceParser(Client geminiClient, IOptions<InvoiceParserOptions> o
         {
             await sendEventAsync("status",
                 new { message = "AI service is temporarily busy. Please try again shortly." }, cancellationToken);
-            return [];
+            return default;
         }
 
         string json = response.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text ?? "{}";
-        InvoiceExtractionEnvelope extracted = JsonSerializer.Deserialize<InvoiceExtractionEnvelope>(
-            json,
+        T extracted = JsonSerializer.Deserialize<T>(json,
             new JsonSerializerOptions
-            { PropertyNameCaseInsensitive = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull }
-        );
+            { PropertyNameCaseInsensitive = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull });
 
         await sendEventAsync("status", new { message = "Finalizing items..." }, cancellationToken);
 
-        return InvoiceHelper.GetGroupedItems(extracted).Cast<T>().ToList();
+        return extracted;
 
         async Task<Part> GetTextPart()
         {

@@ -5,20 +5,18 @@ namespace WebInventory.Controllers;
 
 [ApiController]
 [Route("api/invoice")]
-public class InvoiceController(InvoiceParser invoiceParser) : InteractiveController
+public class InvoiceController(GeminiParser<InvoiceParserOptions> geminiParser) : InteractiveController
 {
     [HttpPost("parse")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(10 * 1024 * 1024)] // 10 MB max
-    public async Task ParseInvoice(
-        [FromForm] IFormFile file,
-        CancellationToken cancellationToken)
+    public async Task ParseInvoice([FromForm] IFormFile file, CancellationToken cancellationToken)
     {
         if (file == null || file.Length == 0)
         {
             await SendEventAsync("error", new { message = "No invoice file uploaded." }, cancellationToken);
+
             return;
-            //return BadRequest("No invoice file uploaded.");
         }
 
         string ext = Path.GetExtension(file.FileName).ToLowerInvariant();
@@ -26,8 +24,8 @@ public class InvoiceController(InvoiceParser invoiceParser) : InteractiveControl
         {
             await SendEventAsync("error",
                 new { message = "Unsupported file format. Please upload a PDF, CSV, or TXT file." }, cancellationToken);
+
             return;
-            //return BadRequest("Unsupported file format. Please upload a PDF, CSV, or TXT file.");
         }
 
         using var memoryStream = new MemoryStream();
@@ -38,10 +36,10 @@ public class InvoiceController(InvoiceParser invoiceParser) : InteractiveControl
 
         try
         {
-            await SendEventAsync("result",
-                await invoiceParser.ParseDocument<ParsedInvoiceItemDto>(ext, fileBytes, cancellationToken,
-                    SendEventAsync), cancellationToken);
-            //return Ok(await invoiceParser.ParseInvoice(ext, fileBytes, cancellationToken, SendEventAsync));
+            InvoiceExtractionEnvelope items =
+                await geminiParser.ParseDocument<InvoiceExtractionEnvelope>(ext, fileBytes, cancellationToken,
+                    SendEventAsync);
+            await SendEventAsync("result", InvoiceHelper.GetGroupedItems(items), cancellationToken);
         }
         catch (OperationCanceledException)
         {

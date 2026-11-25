@@ -2,5 +2,5 @@
 
 public interface IAiClient
 {
-    Task<string> PromptAsync(string prompt);
+    Task<string> GenerateJsonAsync(string prompt, string model, CancellationToken cancellationToken);
 }
