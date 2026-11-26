@@ -17,6 +17,7 @@ import { useHiddenPanel } from './useHiddenPanel';
 import ProductionMapModal from '../features/warehouse/ProductionMapModal';
 import PreferencesBar from './PreferencesBar';
 import SubscribeModal from './SubscribeModal';
+import LegalModal, { type LegalDocType } from './LegalModal';
 
 const EXPIRATION_TIME_MS = 5 * 60 * 1000;
 const SUPPORT_EMAIL = 'pavlovfontanka@gmail.com';
@@ -60,6 +61,7 @@ export default function MainFrame() {
     
     const [inviteToken, setInviteToken] = useState<string | undefined>(undefined);
     const [showSubscribeModal, setShowSubscribeModal] = useState<boolean>(false);
+    const [activeLegalDoc, setActiveLegalDoc] = useState<LegalDocType | null>(null);
 
     // Logo state & hidden file input ref
     const [logoUrl, setLogoUrl] = useState<string>(DEFAULT_LOGO);
@@ -258,6 +260,17 @@ export default function MainFrame() {
     // The promo text has an {email} placeholder, which is rendered as a mailto link
     const [promoBefore, promoAfter] = t('promo.text').split('{email}');
 
+    const footerLinkStyle = {
+        background: 'none',
+        border: 'none',
+        padding: 0,
+        color: c.textMuted,
+        textDecoration: 'underline',
+        cursor: 'pointer',
+        fontSize: '11px',
+        fontFamily: 'inherit',
+    };
+
     return (
         <InventoryContext.Provider value={inventory}>
             <div style={{
@@ -282,7 +295,7 @@ export default function MainFrame() {
                     width: 'calc(100vw - 240px)',
                     height: '100%',
                     backgroundColor: c.bgMain,
-                    padding: '24px',
+                    padding: '20px 24px 12px 24px',
                     display: 'flex',
                     flexDirection: 'column',
                     boxSizing: 'border-box',
@@ -298,15 +311,16 @@ export default function MainFrame() {
                         borderBottom: `1px solid ${c.borderSubtle}`,
                         paddingBottom: '12px'
                     }}>
-                        {/* Upper-left corner: Logo + Connection status badge */}
+                        {/* Upper-left corner: App Name + Logo + Connection status badge */}
                         <div style={{
                             justifySelf: 'start',
                             display: 'flex',
                             flexDirection: 'row',
                             alignItems: 'center',
                             flexWrap: 'nowrap',
-                            gap: '12px'
-                        }}>
+                            gap: '10px',
+                            minWidth: 0
+                        }}>                            
                             <input
                                 ref={fileInputRef}
                                 type="file"
@@ -318,8 +332,8 @@ export default function MainFrame() {
                                 onClick={handleLogoClick}
                                 title={isAuthenticated ? t('logo.uploadHover') : t('logo.demoDisabled')}
                                 style={{
-                                    width: '48px',
-                                    height: '48px',
+                                    width: '36px',
+                                    height: '36px',
                                     flexShrink: 0,
                                     overflow: 'hidden',
                                     cursor: 'pointer',
@@ -349,7 +363,7 @@ export default function MainFrame() {
                                 style={{
                                     fontSize: '12px',
                                     fontFamily: 'monospace',
-                                    padding: '4px 12px',
+                                    padding: '4px 10px',
                                     borderRadius: '9999px',
                                     border: `1px solid ${alpha(isAuthenticated ? 'accent' : 'warning', 0.4)}`,
                                     color: isAuthenticated ? c.accent : c.warning,
@@ -359,6 +373,15 @@ export default function MainFrame() {
                                 }}
                             >
                                 {isAuthenticated ? t('main.systemConnected') : t('main.demoMode')}
+                            </span>
+                            <span style={{
+                                fontSize: '14px',
+                                fontWeight: 700,
+                                color: c.textStrong,
+                                whiteSpace: 'nowrap',
+                                letterSpacing: '-0.01em'
+                            }}>
+                                {t('app.name')}
                             </span>
                         </div>
 
@@ -451,74 +474,110 @@ export default function MainFrame() {
 
                     <div style={{ position: 'relative', flex: 1, width: '100%', borderRadius: '12px', overflow: 'hidden', border: `1px solid ${c.borderSubtle}`, backgroundColor: alpha('bgSurface', 0.2) }}>
                         {renderViewport()}
-                    </div>
 
-                    {/* Bottom-left promo card: only on the map, can be minimised */}
-                    {!isFormView && promoHidden && (
-                        <RestoreButton side="left" title={t('panel.showSubscribe')} onClick={() => setPromoHidden(false)}>
-                            ✉
-                        </RestoreButton>
-                    )}
-                    {!isFormView && !promoHidden && (
-                        <div
-                            style={{
-                                position: 'absolute',
-                                bottom: '24px',
-                                left: '24px',
-                                zIndex: 20,
-                                width: '300px',
-                                padding: '16px',
-                                borderRadius: '12px',
-                                backgroundColor: alpha('bgApp', 0.92),
-                                backdropFilter: 'blur(8px)',
-                                border: `1px solid ${c.borderSubtle}`,
-                                boxShadow: `0 10px 25px -5px ${alpha('overlay', 0.5)}`,
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '10px'
-                            }}
-                        >
-                            <MinimizeButton title={t('panel.hide')} onClick={() => setPromoHidden(true)} />
-                            <div>
-                                <h3 style={{ margin: '0 0 4px 0', paddingRight: '24px', fontSize: '14px', fontWeight: 600, color: c.text }}>
-                                    {t('promo.title')}
-                                </h3>
-                                <p style={{ margin: 0, fontSize: '12px', lineHeight: '1.4', color: c.textMuted }}>
-                                    {promoBefore}
-                                    <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: c.accent, textDecoration: 'none' }}>
-                                        {SUPPORT_EMAIL}
-                                    </a>
-                                    {promoAfter}
-                                </p>
-                            </div>
-
-                            <button
-                                type="button"
-                                onClick={() => setShowSubscribeModal(true)}
+                        {/* Bottom-left promo card: inside viewport so it doesn't overlap the footer */}
+                        {!isFormView && promoHidden && (
+                            <RestoreButton side="left" title={t('panel.showSubscribe')} onClick={() => setPromoHidden(false)}>
+                                ✉
+                            </RestoreButton>
+                        )}
+                        {!isFormView && !promoHidden && (
+                            <div
                                 style={{
-                                    padding: '8px 12px',
-                                    fontSize: '12px',
-                                    fontWeight: 600,
-                                    borderRadius: '6px',
-                                    border: 'none',
-                                    backgroundColor: c.accent,
-                                    color: c.onAccent,
-                                    cursor: 'pointer',
-                                    alignSelf: 'center',
+                                    position: 'absolute',
+                                    bottom: '16px',
+                                    left: '16px',
+                                    zIndex: 20,
+                                    width: '300px',
+                                    padding: '16px',
+                                    borderRadius: '12px',
+                                    backgroundColor: alpha('bgApp', 0.92),
+                                    backdropFilter: 'blur(8px)',
+                                    border: `1px solid ${c.borderSubtle}`,
+                                    boxShadow: `0 10px 25px -5px ${alpha('overlay', 0.5)}`,
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '10px'
                                 }}
                             >
-                                {t('promo.subscribe')}
-                            </button>
-                        </div>
-                    )}
+                                <MinimizeButton title={t('panel.hide')} onClick={() => setPromoHidden(true)} />
+                                <div>
+                                    <h3 style={{ margin: '0 0 4px 0', paddingRight: '24px', fontSize: '14px', fontWeight: 600, color: c.text }}>
+                                        {t('promo.title')}
+                                    </h3>
+                                    <p style={{ margin: 0, fontSize: '12px', lineHeight: '1.4', color: c.textMuted }}>
+                                        {promoBefore}
+                                        <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: c.accent, textDecoration: 'none' }}>
+                                            {SUPPORT_EMAIL}
+                                        </a>
+                                        {promoAfter}
+                                    </p>
+                                </div>
 
-                    {!isFormView && (
-                        <ScribeAdvisor
-                            key={isAuthenticated ? t('advisor.connected') : t('advisor.guest')}
-                            message={isAuthenticated ? t('advisor.connected') : t('advisor.guest')}
-                            isDemoMode={!isAuthenticated}
-                        />
-                    )}
+                                <button
+                                    type="button"
+                                    onClick={() => setShowSubscribeModal(true)}
+                                    style={{
+                                        padding: '8px 12px',
+                                        fontSize: '12px',
+                                        fontWeight: 600,
+                                        borderRadius: '6px',
+                                        border: 'none',
+                                        backgroundColor: c.accent,
+                                        color: c.onAccent,
+                                        cursor: 'pointer',
+                                        alignSelf: 'center',
+                                    }}
+                                >
+                                    {t('promo.subscribe')}
+                                </button>
+                            </div>
+                        )}
+
+                        {!isFormView && (
+                            <ScribeAdvisor
+                                key={isAuthenticated ? t('advisor.connected') : t('advisor.guest')}
+                                message={isAuthenticated ? t('advisor.connected') : t('advisor.guest')}
+                                isDemoMode={!isAuthenticated}
+                            />
+                        )}
+                    </div>
+
+                    {/* MainFrame Footer: Visible directly on landing page for Paddle Domain Verification */}
+                    <footer style={{
+                        marginTop: '10px',
+                        paddingTop: '8px',
+                        borderTop: `1px solid ${c.borderSubtle}`,
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: '12px',
+                        fontSize: '11px',
+                        color: c.textMuted
+                    }}>
+                        <div>
+                            {t('footer.tagline')}
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                            <button type="button" onClick={() => setActiveLegalDoc('terms')} style={footerLinkStyle}>
+                                {t('legal.termsTitle')}
+                            </button>
+                            <span>•</span>
+                            <button type="button" onClick={() => setActiveLegalDoc('privacy')} style={footerLinkStyle}>
+                                {t('legal.privacyTitle')}
+                            </button>
+                            <span>•</span>
+                            <button type="button" onClick={() => setActiveLegalDoc('refund')} style={footerLinkStyle}>
+                                {t('legal.refundTitle')}
+                            </button>
+                            <span>•</span>
+                            <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: c.accent, textDecoration: 'none' }}>
+                                {SUPPORT_EMAIL}
+                            </a>
+                        </div>
+                    </footer>
                 </main>
 
                 {showLoginModal && <LoginModal
@@ -540,6 +599,13 @@ export default function MainFrame() {
                 <SubscribeModal
                     isOpen={showSubscribeModal}
                     onClose={() => setShowSubscribeModal(false)}
+                    supportEmail={SUPPORT_EMAIL}
+                    onOpenLegal={(docType) => setActiveLegalDoc(docType)}
+                />
+
+                <LegalModal
+                    docType={activeLegalDoc}
+                    onClose={() => setActiveLegalDoc(null)}
                     supportEmail={SUPPORT_EMAIL}
                 />
             </div>
