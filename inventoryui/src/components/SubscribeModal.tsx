@@ -4,8 +4,10 @@ import type { SyntheticEvent } from 'react';
 import { c, alpha } from '../theme/themes';
 import { useI18n } from '../i18n/useI18n';
 import type { LegalDocType } from './LegalModal';
+import { fetchLocalPricePreview } from './currencyPreview';
 
-export const SUBSCRIPTION_PRICE = '$9.99 USD';
+export const SUBSCRIPTION_AMOUNT_USD = 9.99;
+export const SUBSCRIPTION_PRICE = `$${SUBSCRIPTION_AMOUNT_USD.toFixed(2)} USD`;
 
 interface PaddleEvent {
     name: string;
@@ -16,28 +18,11 @@ interface PaddleEvent {
     };
 }
 
-interface PaddlePricePreviewResult {
-    data?: {
-        currency_code?: string;
-        details?: {
-            line_items?: Array<{
-                formatted_totals?: {
-                    total?: string;
-                    subtotal?: string;
-                };
-            }>;
-        };
-    };
-}
-
 declare global {
     interface Window {
         Paddle?: {
             Environment: { set: (env: 'sandbox' | 'production') => void };
             Initialize: (opts: { token: string; eventCallback?: (event: PaddleEvent) => void }) => void;
-            PricePreview?: (opts: {
-                items: { priceId: string; quantity: number }[];
-            }) => Promise<PaddlePricePreviewResult>;
             Checkout: {
                 open: (opts: {
                     items: { priceId: string; quantity: number }[];
@@ -53,13 +38,18 @@ interface SubscribeModalProps {
     isOpen: boolean;
     onClose: () => void;
     supportEmail: string;
-    onOpenLegal: (docType: LegalDocType) => void;
+    onOpenLegal: (doc: LegalDocType) => void;
 }
 
 const PADDLE_CLIENT_TOKEN = import.meta.env.VITE_PADDLE_CLIENT_TOKEN;
 const PADDLE_PRICE_ID = import.meta.env.VITE_PADDLE_PRICE_ID;
 
-export default function SubscribeModal({ isOpen, onClose, supportEmail, onOpenLegal }: SubscribeModalProps) {
+export default function SubscribeModal({
+    isOpen,
+    onClose,
+    supportEmail,
+    onOpenLegal,
+}: SubscribeModalProps) {
     const { t } = useI18n();
     const [email, setEmail] = useState('');
     const [agreed, setAgreed] = useState(false);
@@ -67,9 +57,8 @@ export default function SubscribeModal({ isOpen, onClose, supportEmail, onOpenLe
     const [localApproxPrice, setLocalApproxPrice] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!isOpen || !window.Paddle || !PADDLE_CLIENT_TOKEN) return;
-
-        if (PADDLE_CLIENT_TOKEN.startsWith('test_')) {
+        if (!window.Paddle) return;
+        if (PADDLE_CLIENT_TOKEN?.startsWith('test_')) {
             window.Paddle.Environment.set('sandbox');
         }
         window.Paddle.Initialize({
@@ -81,24 +70,21 @@ export default function SubscribeModal({ isOpen, onClose, supportEmail, onOpenLe
                 }
             },
         });
+    }, [email]);
 
-        if (PADDLE_PRICE_ID && window.Paddle.PricePreview) {
-            window.Paddle.PricePreview({
-                items: [{ priceId: PADDLE_PRICE_ID, quantity: 1 }],
-            })
-                .then((res) => {
-                    const currency = res?.data?.currency_code;
-                    const item = res?.data?.details?.line_items?.[0];
-                    const formatted = item?.formatted_totals?.total || item?.formatted_totals?.subtotal;
-                    if (formatted && currency && currency !== 'USD') {
-                        setLocalApproxPrice(`${formatted} (${currency})`);
-                    }
-                })
-                .catch(() => {
-                    // Fallback silently if PricePreview is unavailable
-                });
-        }
-    }, [isOpen, email]);
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const controller = new AbortController();
+
+        fetchLocalPricePreview(SUBSCRIPTION_AMOUNT_USD, controller.signal).then((preview) => {
+            if (!controller.signal.aborted) {
+                setLocalApproxPrice(preview);
+            }
+        });
+
+        return () => controller.abort();
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
@@ -131,6 +117,9 @@ export default function SubscribeModal({ isOpen, onClose, supportEmail, onOpenLe
         fontFamily: 'inherit',
     };
 
+    const priceAfterText = t('sub.priceAfter').replace(/\{price\}/g, SUBSCRIPTION_PRICE);
+    const trialDescText = t('sub.trialDesc').replace(/\{price\}/g, SUBSCRIPTION_PRICE);
+
     return (
         <div
             onClick={handleClose}
@@ -150,7 +139,7 @@ export default function SubscribeModal({ isOpen, onClose, supportEmail, onOpenLe
                 onClick={(e) => e.stopPropagation()}
                 style={{
                     width: '100%',
-                    maxWidth: '440px',
+                    maxWidth: '450px',
                     backgroundColor: c.bgApp,
                     border: `1px solid ${c.borderSubtle}`,
                     borderRadius: '12px',
@@ -169,7 +158,13 @@ export default function SubscribeModal({ isOpen, onClose, supportEmail, onOpenLe
                     <button
                         type="button"
                         onClick={handleClose}
-                        style={{ background: 'transparent', border: 'none', color: c.textMuted, fontSize: '18px', cursor: 'pointer' }}
+                        style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: c.textMuted,
+                            fontSize: '18px',
+                            cursor: 'pointer',
+                        }}
                     >
                         ✕
                     </button>
@@ -192,35 +187,35 @@ export default function SubscribeModal({ isOpen, onClose, supportEmail, onOpenLe
                             {t('sub.trialHeader')}
                         </span>
                         <span style={{ fontSize: '15px', fontWeight: 700, color: c.accent }}>
-                            {t('sub.priceAfter').replace('{price}', SUBSCRIPTION_PRICE)}
+                            {priceAfterText}
                         </span>
                     </div>
 
                     <p style={{ margin: 0, fontSize: '13px', lineHeight: '1.5', color: c.text }}>
-                        {t('sub.trialDesc').replace('{price}', SUBSCRIPTION_PRICE)}
+                        {trialDescText}
                     </p>
 
+                    {/* Prominent Local Currency Note & Live Rate Estimate */}
                     <div
                         style={{
-                            padding: '8px 10px',
+                            marginTop: '2px',
+                            padding: '10px 12px',
                             borderRadius: '6px',
-                            backgroundColor: alpha('bgApp', 0.65),
-                            border: `1px solid ${alpha('accent', 0.25)}`,
-                            fontSize: '12.5px',
-                            lineHeight: '1.45',
-                            color: c.textStrong,
-                            fontWeight: 500,
+                            backgroundColor: alpha('bgMain', 0.75),
+                            border: `1px solid ${c.borderSubtle}`,
                             display: 'flex',
                             flexDirection: 'column',
-                            gap: '3px',
+                            gap: '4px',
                         }}
                     >
                         {localApproxPrice && (
-                            <span style={{ fontWeight: 700, color: c.accent }}>
+                            <div style={{ fontSize: '13px', fontWeight: 700, color: c.textStrong }}>
                                 {t('sub.localApprox').replace('{localPrice}', localApproxPrice)}
-                            </span>
+                            </div>
                         )}
-                        <span>{t('sub.localCurrencyNote')}</span>
+                        <div style={{ fontSize: '12.5px', fontWeight: 500, lineHeight: '1.4', color: c.textStrong }}>
+                            {t('sub.localCurrencyNote')}
+                        </div>
                     </div>
                 </div>
 
@@ -271,7 +266,17 @@ export default function SubscribeModal({ isOpen, onClose, supportEmail, onOpenLe
                         </div>
 
                         {/* Mandatory Legal Agreement Checkbox */}
-                        <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '12px', color: c.textMuted, cursor: 'pointer', lineHeight: '1.4' }}>
+                        <label
+                            style={{
+                                display: 'flex',
+                                alignItems: 'flex-start',
+                                gap: '8px',
+                                fontSize: '12px',
+                                color: c.textMuted,
+                                cursor: 'pointer',
+                                lineHeight: '1.4',
+                            }}
+                        >
                             <input
                                 type="checkbox"
                                 required
@@ -313,8 +318,17 @@ export default function SubscribeModal({ isOpen, onClose, supportEmail, onOpenLe
                             {t('sub.startBtn')}
                         </button>
 
-                        {/* Merchant of Record & Support Footer */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', textAlign: 'center', fontSize: '11px', color: c.textMuted }}>
+                        {/* Merchant of Record & Support Info */}
+                        <div
+                            style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '4px',
+                                textAlign: 'center',
+                                fontSize: '11px',
+                                color: c.textMuted,
+                            }}
+                        >
                             <div>{t('sub.morNotice')}</div>
                             <div>
                                 {t('sub.paymentMethods')} •{' '}
