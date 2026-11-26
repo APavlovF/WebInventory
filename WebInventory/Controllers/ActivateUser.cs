@@ -19,7 +19,9 @@ public class ActivateUser(EfDbContext db, PasswordService passwordService) : Con
         {
             Email = invitation.Login,
             PasswordHash = passwordService.HashPassword(null, request.Password),
-            IsActivated = true
+            IsActivated = true,
+            SubscriptionId = invitation.SubscriptionId,
+            SubscriptionStatus = SubscriptionStatus.ACTIVE
         };
 
         db.Users.Add(user);

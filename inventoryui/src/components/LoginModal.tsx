@@ -1,5 +1,5 @@
 // src/components/LoginModal.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { BASE_BACKEND_URL } from '../api';
 import { useI18n } from '../i18n/useI18n';
 import { c, alpha } from '../theme/themes';
@@ -7,16 +7,24 @@ import { c, alpha } from '../theme/themes';
 interface LoginModalProps {
     onSuccess: () => void;
     onClose: () => void;
+    initialToken?: string;
 }
 
-export default function LoginModal({ onSuccess, onClose }: LoginModalProps) {
+export default function LoginModal({ onSuccess, onClose, initialToken }: LoginModalProps) {
     const { t } = useI18n();
-    const [isFirstAccess, setIsFirstAccess] = useState<boolean>(false);
-    const [loginOrToken, setLoginOrToken] = useState<string>("");
+    const [isFirstAccess, setIsFirstAccess] = useState<boolean>(Boolean(initialToken));
+    const [loginOrToken, setLoginOrToken] = useState<string>(initialToken ?? "");
     const [password, setPassword] = useState<string>("");
     const [errorMessage, setErrorMessage] = useState<string>("");
     const [successMessage, setSuccessMessage] = useState<string>("");
     const [isLoading, setIsLoading] = useState<boolean>(false);
+
+    useEffect(() => {
+        if (initialToken) {
+            setIsFirstAccess(true);
+            setLoginOrToken(initialToken);
+        }
+    }, [initialToken]);
 
     const handleSubmit = async (e: React.SyntheticEvent) => {
         e.preventDefault();

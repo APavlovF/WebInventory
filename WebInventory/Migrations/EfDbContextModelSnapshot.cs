@@ -61,12 +61,19 @@ namespace WebInventory.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<bool>("EmailSent")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTime>("ExpiresUtc")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Login")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
+
+                    b.Property<string>("SubscriptionId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<Guid>("Token")
                         .HasColumnType("uuid");
@@ -252,8 +259,8 @@ namespace WebInventory.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Email")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<bool>("IsActivated")
                         .HasColumnType("boolean");
@@ -265,6 +272,13 @@ namespace WebInventory.Migrations
                     b.Property<string>("PasswordHash")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("SubscriptionId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("SubscriptionStatus")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 

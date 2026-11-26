@@ -12,7 +12,8 @@ public class LoginController(IDatabaseReader databaseReader, JwtService jwtServi
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         User user = (await databaseReader.Read<User>()).FirstOrDefault(u => u.Email == request.Email);
-        if (user == null || !passwordService.Verify(user, request.Password, user.PasswordHash)) return Unauthorized();
+        if (user == null || user.SubscriptionStatus == SubscriptionStatus.CANCELLED ||
+            !passwordService.Verify(user, request.Password, user.PasswordHash)) return Unauthorized();
 
         string token = jwtService.Generate(user);
 

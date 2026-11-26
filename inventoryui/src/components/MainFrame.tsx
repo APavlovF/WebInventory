@@ -16,6 +16,7 @@ import MinimizeButton, { RestoreButton } from './MinimizeButton';
 import { useHiddenPanel } from './useHiddenPanel';
 import ProductionMapModal from '../features/warehouse/ProductionMapModal';
 import PreferencesBar from './PreferencesBar';
+import SubscribeModal from './SubscribeModal';
 
 const EXPIRATION_TIME_MS = 5 * 60 * 1000;
 const SUPPORT_EMAIL = 'pavlovfontanka@gmail.com';
@@ -56,6 +57,9 @@ export default function MainFrame() {
     // Signed in = real data from the database. Not signed in = demo mode (data kept in this browser tab only)
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(hasValidSession);
     const [showLoginModal, setShowLoginModal] = useState<boolean>(false);
+    
+    const [inviteToken, setInviteToken] = useState<string | undefined>(undefined);
+    const [showSubscribeModal, setShowSubscribeModal] = useState<boolean>(false);
 
     // Logo state & hidden file input ref
     const [logoUrl, setLogoUrl] = useState<string>(DEFAULT_LOGO);
@@ -94,6 +98,16 @@ export default function MainFrame() {
         setIsAuthenticated(false);
         setLogoUrl(DEFAULT_LOGO);
     };
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const tokenFromUrl = params.get('inviteToken');
+        if (tokenFromUrl) {
+            setInviteToken(tokenFromUrl);
+            setShowLoginModal(true);
+            window.history.replaceState({}, '', window.location.pathname);
+        }
+    }, []);
 
     useEffect(() => {
         const checkSessionExpiration = () => {
@@ -260,7 +274,7 @@ export default function MainFrame() {
             }}>
                 <Sidebar
                     activeTab={activeTab}
-                    setActiveTab={handleTabChange}                    
+                    setActiveTab={handleTabChange}
                 />
 
                 <main style={{
@@ -480,7 +494,7 @@ export default function MainFrame() {
 
                             <button
                                 type="button"
-                                onClick={() => alert(t('promo.alert', { email: SUPPORT_EMAIL }))}
+                                onClick={() => setShowSubscribeModal(true)}
                                 style={{
                                     padding: '8px 12px',
                                     fontSize: '12px',
@@ -508,15 +522,26 @@ export default function MainFrame() {
                 </main>
 
                 {showLoginModal && <LoginModal
+                    initialToken={inviteToken}
                     onSuccess={() => {
                         localStorage.setItem('session_login_time', Date.now().toString());
                         setIsAuthenticated(true);
                         setPromoHidden(true);
+                        setInviteToken(undefined);
                         void fetchUserLogo();
                         setShowLoginModal(false);
                     }}
-                    onClose={() => setShowLoginModal(false)}
+                    onClose={() => {
+                        setInviteToken(undefined);
+                        setShowLoginModal(false);
+                    }}
                 />}
+
+                <SubscribeModal
+                    isOpen={showSubscribeModal}
+                    onClose={() => setShowSubscribeModal(false)}
+                    supportEmail={SUPPORT_EMAIL}
+                />
             </div>
         </InventoryContext.Provider>
     );

@@ -66,7 +66,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowUI", policy =>
     {
-        policy.WithOrigins("http://localhost:56951", "https://apavlovf.github.io", "http://127.0.0.1:3000")
+        policy.WithOrigins("http://localhost:5050", "https://apavlovf.github.io", "http://127.0.0.1:3000")
             .AllowAnyHeader()
             .AllowAnyMethod()
             .WithExposedHeaders("Content-Disposition");

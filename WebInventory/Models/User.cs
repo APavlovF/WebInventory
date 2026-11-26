@@ -10,11 +10,14 @@ public class User : IEntityTypeConfiguration<User>
     public string Email { get; set; }
     public string LogoUrl { get; set; }
     public string PasswordHash { get; set; }
+    public string SubscriptionId { get; set; }
+    public SubscriptionStatus SubscriptionStatus { get; set; }
 
     public void Configure(EntityTypeBuilder<User> builder)
     {
-        builder.Property(u => u.Email).HasMaxLength(500);
+        builder.Property(u => u.Email).HasMaxLength(100);
         builder.Property(u => u.LogoUrl).HasMaxLength(500);
         builder.Property(u => u.PasswordHash).HasMaxLength(1000);
+        builder.Property(u => u.SubscriptionId).HasMaxLength(200);
     }
 }
