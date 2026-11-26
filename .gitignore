@@ -364,3 +364,6 @@ FodyWeavers.xsd
 
 /WebInventory/Properties/launchSettings.json
 /WebInventory/Properties/launchSettings.json
+
+/inventoryui/.env
+/InventoryUI/.env
