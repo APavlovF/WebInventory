@@ -56,10 +56,7 @@ export default function MainFrame() {
     const [activeTab, setActiveTab] = useState<TabType>('Overview');
     const [viewportKey, setViewportKey] = useState<TKey>('nav.overview');
     // Signed in = real data from the database. Not signed in = demo mode (data kept in this browser tab only)
-    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(hasValidSession);
-    const [showLoginModal, setShowLoginModal] = useState<boolean>(false);
-    
-    const [inviteToken, setInviteToken] = useState<string | undefined>(undefined);
+    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(hasValidSession);    
     const [showSubscribeModal, setShowSubscribeModal] = useState<boolean>(false);
     const [activeLegalDoc, setActiveLegalDoc] = useState<LegalDocType | null>(null);
 
@@ -99,20 +96,19 @@ export default function MainFrame() {
         localStorage.removeItem("session_login_time");
         setIsAuthenticated(false);
         setLogoUrl(DEFAULT_LOGO);
-    };
+    };    
 
-    useEffect(() => {
+    const [inviteToken, setInviteToken] = useState<string | undefined>(() => {
         const params = new URLSearchParams(window.location.search);
-        const tokenFromUrl = params.get('inviteToken');
-        if (tokenFromUrl) {
-            const timeoutId = window.setTimeout(() => {
-                setInviteToken(tokenFromUrl);
-                setShowLoginModal(true);
-            }, 0);
+        const token = params.get('inviteToken') || undefined;
+        if (token) {
             window.history.replaceState({}, '', window.location.pathname);
-            return () => window.clearTimeout(timeoutId);
         }
-    }, []);
+        return token;
+    });
+
+    const [showLoginModal, setShowLoginModal] = useState<boolean>(() => Boolean(inviteToken));
+
 
     useEffect(() => {
         const checkSessionExpiration = () => {

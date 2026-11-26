@@ -6,7 +6,7 @@ import { useI18n } from '../i18n/useI18n';
 import type { LegalDocType } from './LegalModal';
 import { fetchLocalPricePreview } from './currencyPreview';
 
-export const SUBSCRIPTION_AMOUNT_USD = 9.99;
+export const SUBSCRIPTION_AMOUNT_USD = 11.90;
 export const SUBSCRIPTION_PRICE = `$${SUBSCRIPTION_AMOUNT_USD.toFixed(2)} USD`;
 
 interface PaddleEvent {

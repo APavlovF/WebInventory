@@ -1,5 +1,4 @@
-﻿using System.Net;
-using System.Net.Mail;
+﻿using System.Net.Mail;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -7,12 +6,13 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebInventory.Data;
 using WebInventory.Models;
+using WebInventory.Services;
 
 namespace WebInventory.Controllers;
 
 [ApiController]
 [Route("api/paddle")]
-public class PaddleController(EfDbContext db, IConfiguration config) : ControllerBase
+public class PaddleController(EfDbContext db, EmailService emailService, IConfiguration config) : ControllerBase
 {
     [HttpPost("webhook")]
     public async Task<IActionResult> Webhook()
@@ -39,51 +39,51 @@ public class PaddleController(EfDbContext db, IConfiguration config) : Controlle
             {
                 // Triggered immediately when the 14-day free trial starts
                 case "subscription.created":
-                {
-                    string subscriptionId = data.GetProperty("id").GetString()!;
-                    string status = data.GetProperty("status").GetString();
-                    string email = null;
-                    if (data.TryGetProperty("custom_data", out JsonElement customData) &&
-                        customData.ValueKind == JsonValueKind.Object &&
-                        customData.TryGetProperty("login", out JsonElement loginProp))
                     {
-                        email = loginProp.GetString();
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(email) && (status == "trialing" || status == "active"))
-                    {
-                        string normalizedEmail = email.Trim().ToLowerInvariant();
-
-                        // 1. Find existing invitation or create a new one
-                        Invitation invitation =
-                            await db.Invitations.FirstOrDefaultAsync(i => i.SubscriptionId == subscriptionId);
-
-                        if (invitation == null)
+                        string subscriptionId = data.GetProperty("id").GetString()!;
+                        string status = data.GetProperty("status").GetString();
+                        string email = null;
+                        if (data.TryGetProperty("custom_data", out JsonElement customData) &&
+                            customData.ValueKind == JsonValueKind.Object &&
+                            customData.TryGetProperty("login", out JsonElement loginProp))
                         {
-                            invitation = new Invitation
+                            email = loginProp.GetString();
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(email) && (status == "trialing" || status == "active"))
+                        {
+                            string normalizedEmail = email.Trim().ToLowerInvariant();
+
+                            // 1. Find existing invitation or create a new one
+                            Invitation invitation =
+                                await db.Invitations.FirstOrDefaultAsync(i => i.SubscriptionId == subscriptionId);
+
+                            if (invitation == null)
                             {
-                                Login = normalizedEmail,
-                                Token = Guid.NewGuid(),
-                                ExpiresUtc = DateTime.UtcNow.AddDays(7),
-                                SubscriptionId = subscriptionId,
-                                EmailSent = false
-                            };
+                                invitation = new Invitation
+                                {
+                                    Login = normalizedEmail,
+                                    Token = Guid.NewGuid(),
+                                    ExpiresUtc = DateTime.UtcNow.AddDays(7),
+                                    SubscriptionId = subscriptionId,
+                                    EmailSent = false
+                                };
 
-                            db.Invitations.Add(invitation);
-                            await db.SaveChangesAsync(); // Saved first so token is persisted even if email fails
+                                db.Invitations.Add(invitation);
+                                await db.SaveChangesAsync(); // Saved first so token is persisted even if email fails
+                            }
+
+                            // 2. Only send email if it hasn't been sent yet (safe across Paddle retries!)
+                            if (!invitation.EmailSent)
+                            {
+                                await SendActivationEmailAsync(normalizedEmail, invitation.Token); // Throws 500 on failure -> Paddle retries!
+
+                                invitation.EmailSent = true;
+                                await db.SaveChangesAsync();
+                            }
                         }
-
-                        // 2. Only send email if it hasn't been sent yet (safe across Paddle retries!)
-                        if (!invitation.EmailSent)
-                        {
-                            await SendActivationEmailAsync(normalizedEmail, invitation.Token); // Throws 500 on failure -> Paddle retries!
-
-                            invitation.EmailSent = true;
-                            await db.SaveChangesAsync();
-                        }
+                        break;
                     }
-                    break;
-                }
 
                 // Triggered when trial ends without payment, user cancels, or payment fails
                 case "subscription.canceled":
@@ -115,19 +115,8 @@ public class PaddleController(EfDbContext db, IConfiguration config) : Controlle
     {
         string frontendUrl = (config["FRONTEND_URL"] ?? "http://localhost:5050/WebInventory").TrimEnd('/');
         string activationLink = $"{frontendUrl}/?inviteToken={token}";
-
-        string smtpHost = config["SMTP_HOST"] ?? "://gmail.com";
-        int smtpPort = int.Parse(config["SMTP_PORT"] ?? "587");
-        string smtpUser = config["SMTP_USER"]!;
-        string smtpPass = config["SMTP_PASS"]!; // For Gmail, use a 16-char Google App Password
-
-        using SmtpClient client = new SmtpClient(smtpHost, smtpPort);
-        client.Credentials = new NetworkCredential(smtpUser, smtpPass);
-        client.EnableSsl = true;
-
         MailMessage mail = new MailMessage
         {
-            From = new MailAddress(smtpUser, "Inventory App"),
             Subject = "Activate your 14-Day Free Trial",
             Body = $"""
                     Welcome! Your 14-day free trial is active.
@@ -142,48 +131,43 @@ public class PaddleController(EfDbContext db, IConfiguration config) : Controlle
                     """,
             IsBodyHtml = false
         };
-        mail.To.Add(toEmail);
 
-        await client.SendMailAsync(mail);
+        await emailService.SendEmail(mail, toEmail);
     }
 
     private async Task SendAdminAlertAsync(string subject, string body)
     {
-        string smtpHost = config["SMTP_HOST"] ?? "smtp.gmail.com";
-        int smtpPort = int.Parse(config["SMTP_PORT"] ?? "587");
-        string smtpUser = config["SMTP_USER"]!;
-        string smtpPass = config["SMTP_PASS"]!;
-        using SmtpClient client = new SmtpClient(smtpHost, smtpPort);
-        client.Credentials = new NetworkCredential(smtpUser, smtpPass);
-        client.EnableSsl = true;
         MailMessage mail = new MailMessage
         {
-            From = new MailAddress(smtpUser, "Inventory App"),
             Subject = subject,
             Body = body,
             IsBodyHtml = false
         };
-        mail.To.Add(smtpUser);
 
-        await client.SendMailAsync(mail);
+        await emailService.SendEmail(mail, config["SMTP_USER"]);
     }
 
 
     private static bool VerifyPaddleSignature(string rawBody, string header, string secret)
     {
-        if (string.IsNullOrWhiteSpace(header) || string.IsNullOrWhiteSpace(secret))
-            return false;
+        if (string.IsNullOrWhiteSpace(header) || string.IsNullOrWhiteSpace(secret)) return false;
 
         string ts = null;
         string h1 = null;
-
         foreach (string part in header.Split(';'))
         {
             string[] kv = part.Split('=', 2);
             if (kv.Length == 2)
             {
-                if (kv[0] == "ts") ts = kv[1];
-                else if (kv[0] == "h1") h1 = kv[1];
+                switch (kv[0])
+                {
+                    case "ts":
+                        ts = kv[1];
+                        break;
+                    case "h1":
+                        h1 = kv[1];
+                        break;
+                }
             }
         }
 

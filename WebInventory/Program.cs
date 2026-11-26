@@ -33,6 +33,7 @@ builder.Services.AddSingleton<JwtService>();
 builder.Services.AddSingleton<PasswordService>();
 
 builder.Services.AddScoped<IFileWriter, CsvWriter>();
+builder.Services.AddScoped<EmailService>();
 builder.Services.AddScoped<IFileWriterFactory, FileWriterFactory>();
 builder.Services.AddScoped<IFileWriter, PdfFileWriter>();
 builder.Services.AddScoped<IFileWriter, TxtFileWriter>();
