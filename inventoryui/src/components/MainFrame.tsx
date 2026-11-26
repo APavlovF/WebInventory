@@ -105,9 +105,12 @@ export default function MainFrame() {
         const params = new URLSearchParams(window.location.search);
         const tokenFromUrl = params.get('inviteToken');
         if (tokenFromUrl) {
-            setInviteToken(tokenFromUrl);
-            setShowLoginModal(true);
+            const timeoutId = window.setTimeout(() => {
+                setInviteToken(tokenFromUrl);
+                setShowLoginModal(true);
+            }, 0);
             window.history.replaceState({}, '', window.location.pathname);
+            return () => window.clearTimeout(timeoutId);
         }
     }, []);
 
