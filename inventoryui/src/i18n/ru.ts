@@ -129,6 +129,8 @@ export const ru: Record<TKey, string> = {
     'footer.copyright': '© 2026 pavlovit Бразилия. Все права защищены.',
     'footer.noCookies': 'Файлы cookie не используются.',
     'footer.tagline': 'Облачный учет склада, материалов и производства',
+    'header.getStarted': 'С чего начать',
+    'header.help': 'Помощь',
     'header.signOut': 'Выйти',
     'inv.empty': 'На складе пока ничего нет.',
     'inv.grandTotal': 'Общий итог:',

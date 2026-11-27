@@ -129,6 +129,8 @@ export const es: Record<TKey, string> = {
     'footer.copyright': '© 2026 pavlovit Brasil. All rights reserved.',
     'footer.noCookies': 'No cookies used.',
     'footer.tagline': 'Control de inventario, materiales y producción en la nube',
+    'header.getStarted': 'Primeros pasos',
+    'header.help': 'Ayuda',
     'header.signOut': 'Sign out',
     'inv.empty': 'Aún no hay materiales en stock.',
     'inv.grandTotal': 'Total general:',

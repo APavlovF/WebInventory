@@ -1,0 +1,29 @@
+QUICK-START GUIDE
+
+Phase 1: Initial Setup
+Complete these two steps first to configure your system:
+
+1. Add Raw Materials (Market -> Buy materials)
+   Enter your list of available raw materials and initial quantities into the system.
+
+2. Define Products (Workshop -> Add product type)
+   Create your product catalog and set up their Bills of Materials (recipes) to define how much raw material each product uses.
+
+(Your initial setup is now complete.)
+
+---
+
+Phase 2: Daily Operations & Management
+Once set up, manage your ongoing workflow using these actions:
+
+- Manufacture Goods (Workshop -> Produce batch)
+  Select a product and enter the quantity to produce. The system will automatically verify if you have enough raw materials and alert you if stock is too low.
+
+- Record Sales (Market -> Sell products)
+  Log outgoing orders to deduct finished products from your stock.
+
+- Configure Alerts (Warehouse -> Setup stock limits)
+  Set minimum and maximum thresholds to receive low-stock or overstock alerts.
+
+- Archive Items (Office -> Remove material / Remove product)
+  Discontinue raw materials or products you no longer use.

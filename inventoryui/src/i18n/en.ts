@@ -129,6 +129,8 @@ export const en = {
     'footer.tagline': 'Cloud inventory, materials & production tracking',
     'footer.noCookies': 'No cookies used.',
     'header.signOut': 'Sign out',
+    'header.getStarted': 'Get started',
+    'header.help': 'Help',
     'inv.empty': 'No materials in stock yet.',
     'inv.grandTotal': 'Grand total:',
     'inv.loading': 'Loading inventory…',

@@ -7,7 +7,7 @@ import plugin from '@vitejs/plugin-react';
 //   1. APP_VERSION environment variable (you set it in the host / CI)
 //   2. git tag:   "v2.1.0"  on a tagged commit,  "v2.1.0-3-g4f2a9c1"  3 commits after the tag
 //                 (or just the short commit id if the repo has no tags)
-//   3. commit id given by the host (Render, Vercel, Netlify)
+//   3. commit id given by the host (Cloudflare, Render, Vercel, Netlify)
 //   4. "version" from package.json
 function gitDescribe(): string | null {
     try {
@@ -18,7 +18,11 @@ function gitDescribe(): string | null {
 }
 
 const packageVersion: string = JSON.parse(readFileSync('./package.json', 'utf8')).version;
-const hostCommit = process.env.RENDER_GIT_COMMIT || process.env.VERCEL_GIT_COMMIT_SHA || process.env.COMMIT_REF;
+const hostCommit =
+    process.env.CF_PAGES_COMMIT_SHA ||
+    process.env.RENDER_GIT_COMMIT ||
+    process.env.VERCEL_GIT_COMMIT_SHA ||
+    process.env.COMMIT_REF;
 
 const appVersion =
     process.env.APP_VERSION ||
@@ -32,9 +36,9 @@ export default defineConfig({
     define: {
         __APP_VERSION__: JSON.stringify(appVersion),
     },
-    base: '/WebInventory/',
+    base: process.env.CF_PAGES ? '/' : '/WebInventory/',
     server: {
         port: 5050,
-		strictPort: true
+        strictPort: true
     }
-})
+});

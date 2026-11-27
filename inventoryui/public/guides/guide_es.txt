@@ -1,0 +1,29 @@
+GUÍA DE INICIO RÁPIDO
+
+Fase 1: Configuración Inicial
+Completa estos dos pasos primero para configurar tu sistema:
+
+1. Añadir Materias Primas (Mercado -> Comprar materiales)
+   Ingresa tu lista de materias primas disponibles y las cantidades iniciales en el sistema.
+
+2. Definir Productos (Taller -> Añadir tipo de producto)
+   Crea tu catálogo de productos y configura sus Listas de Materiales (recetas) para definir cuánta materia prima utiliza cada producto.
+
+(Tu configuración inicial ya está completa.)
+
+---
+
+Fase 2: Operaciones Diarias y Gestión
+Una vez configurado, gestiona tu flujo de trabajo diario mediante estas acciones:
+
+- Fabricar Productos (Taller -> Producir lote)
+  Selecciona un producto e ingresa la cantidad a producir. El sistema verificará automáticamente si hay suficientes materias primas y te alertará si el inventario es demasiado bajo.
+
+- Registrar Ventas (Mercado -> Vender productos)
+  Registra los pedidos salientes para descontar los productos terminados de tu inventario.
+
+- Configurar Alertas (Almacén -> Configurar límites de inventario)
+  Establece umbrales mínimos y máximos para recibir alertas de inventario bajo o exceso de existencias.
+
+- Archivar Artículos (Oficina -> Eliminar material / Eliminar producto)
+  Descontinúa las materias primas o productos que ya no utilices.

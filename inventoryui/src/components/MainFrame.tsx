@@ -18,11 +18,13 @@ import ProductionMapModal from '../features/warehouse/ProductionMapModal';
 import PreferencesBar from './PreferencesBar';
 import SubscribeModal from './SubscribeModal';
 import LegalModal, { type LegalDocType } from './LegalModal';
+import HelpModal from './HelpModal';
 
 const EXPIRATION_TIME_MS = 5 * 60 * 1000;
 const SUPPORT_EMAIL = 'pavlovfontanka@gmail.com';
 const DEFAULT_LOGO = './logo.png';
 const MAX_LOGO_SIZE_BYTES = 1 * 1024 * 1024; // 1 MB
+const HELP_SEEN_STORAGE_KEY = 'quickstart_guide_seen';
 
 type TabType = 'Overview' | 'Inventory' | 'Products' | 'Production Map';
 
@@ -59,6 +61,28 @@ export default function MainFrame() {
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(hasValidSession);    
     const [showSubscribeModal, setShowSubscribeModal] = useState<boolean>(false);
     const [activeLegalDoc, setActiveLegalDoc] = useState<LegalDocType | null>(null);
+
+    // Quick-start Help modal & first-time visitor indicator
+    const [showHelpModal, setShowHelpModal] = useState<boolean>(false);
+    const [hasSeenHelp, setHasSeenHelp] = useState<boolean>(() => {
+        try {
+            return localStorage.getItem(HELP_SEEN_STORAGE_KEY) === 'true';
+        } catch {
+            return false;
+        }
+    });
+
+    const handleOpenHelp = () => {
+        setShowHelpModal(true);
+        if (!hasSeenHelp) {
+            setHasSeenHelp(true);
+            try {
+                localStorage.setItem(HELP_SEEN_STORAGE_KEY, 'true');
+            } catch {
+                // Ignore storage quota / private mode errors
+            }
+        }
+    };
 
     // Logo state & hidden file input ref
     const [logoUrl, setLogoUrl] = useState<string>(DEFAULT_LOGO);
@@ -396,7 +420,7 @@ export default function MainFrame() {
                             {t(viewportKey)}
                         </h1>
 
-                        {/* Upper-right corner: Theme, Language & Session controls */}
+                        {/* Upper-right corner: Get Started / Help + Theme, Language & Session controls */}
                         <div style={{
                             justifySelf: 'end',
                             display: 'flex',
@@ -405,6 +429,39 @@ export default function MainFrame() {
                             flexWrap: 'nowrap',
                             gap: '12px'
                         }}>
+                            <button
+                                type="button"
+                                onClick={handleOpenHelp}
+                                title={t('header.help')}
+                                aria-label={t('header.help')}
+                                style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    padding: '4px',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    backgroundColor: 'transparent',
+                                    color: c.textMuted,
+                                    cursor: 'pointer',
+                                    transition: 'color 0.15s ease, transform 0.15s ease',
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.color = c.textStrong;
+                                    e.currentTarget.style.transform = 'scale(1.08)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.color = c.textMuted;
+                                    e.currentTarget.style.transform = 'scale(1)';
+                                }}
+                            >
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                                </svg>
+                            </button>
+
                             <PreferencesBar />
 
                             <span style={{ width: '1px', height: '16px', backgroundColor: c.borderSubtle }} />
@@ -606,6 +663,11 @@ export default function MainFrame() {
                     docType={activeLegalDoc}
                     onClose={() => setActiveLegalDoc(null)}
                     supportEmail={SUPPORT_EMAIL}
+                />
+
+                <HelpModal
+                    isOpen={showHelpModal}
+                    onClose={() => setShowHelpModal(false)}
                 />
             </div>
         </InventoryContext.Provider>
