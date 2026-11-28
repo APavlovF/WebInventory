@@ -67,7 +67,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowUI", policy =>
     {
-        policy.WithOrigins("http://localhost:5050", "https://webinventory.pages.dev")
+        policy.WithOrigins("http://localhost:5050", "https://webinventory.pages.dev", "https://inventory.twosimplex.com")
             .AllowAnyHeader()
             .AllowAnyMethod()
             .WithExposedHeaders("Content-Disposition");
